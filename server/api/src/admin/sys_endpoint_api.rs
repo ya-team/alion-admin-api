@@ -1,3 +1,11 @@
+/**
+ * 端点管理API
+ * 
+ * 提供端点管理的相关接口，包括：
+ * - 分页查询端点列表
+ * - 获取角色的授权端点
+ * - 获取端点树形结构
+ */
 use std::{collections::BTreeMap, sync::Arc};
 
 use axum::{
@@ -13,6 +21,16 @@ use server_service::admin::{
 pub struct SysEndpointApi;
 
 impl SysEndpointApi {
+    /**
+     * 分页查询端点列表
+     * 
+     * # 参数
+     * - params: 分页查询参数
+     * - service: 端点服务实例
+     * 
+     * # 返回
+     * 返回分页后的端点列表数据
+     */
     pub async fn get_paginated_endpoints(
         Query(params): Query<EndpointPageRequest>,
         Extension(service): Extension<Arc<SysEndpointService>>,
@@ -23,6 +41,17 @@ impl SysEndpointApi {
             .map(Res::new_data)
     }
 
+    /**
+     * 获取角色的授权端点
+     * 
+     * # 参数
+     * - role_code: 角色代码
+     * - user: 当前认证用户信息
+     * - cache_enforcer: Casbin执行器
+     * 
+     * # 返回
+     * 返回角色被授权的端点列表
+     */
     pub async fn get_auth_endpoints(
         Path(role_code): Path<String>,
         Extension(user): Extension<User>,
@@ -49,6 +78,15 @@ impl SysEndpointApi {
         Ok(Res::new_data(formatted_policies))
     }
 
+    /**
+     * 获取端点树形结构
+     * 
+     * # 参数
+     * - service: 端点服务实例
+     * 
+     * # 返回
+     * 返回端点的树形结构数据
+     */
     pub async fn tree_endpoint(
         Extension(service): Extension<Arc<SysEndpointService>>,
     ) -> Result<Res<Vec<EndpointTree>>, AppError> {

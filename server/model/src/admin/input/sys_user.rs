@@ -1,9 +1,20 @@
+/**
+ * 用户相关输入参数定义
+ * 
+ * 包含用户分页、创建、更新等输入结构体。
+ */
+
 use serde::{Deserialize, Serialize};
 use server_core::web::page::PageRequest;
 use validator::Validate;
 
 use crate::admin::entities::sea_orm_active_enums::Status;
 
+/**
+ * 用户分页请求参数
+ * 
+ * 用于分页查询用户。
+ */
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserPageRequest {
     #[serde(flatten)]
@@ -11,6 +22,11 @@ pub struct UserPageRequest {
     pub keywords: Option<String>,
 }
 
+/**
+ * 用户创建/更新输入参数
+ * 
+ * 用于创建和更新用户。
+ */
 #[derive(Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInput {
@@ -41,8 +57,16 @@ pub struct UserInput {
     pub status: Status,
 }
 
+/**
+ * 用户创建输入类型别名
+ */
 pub type CreateUserInput = UserInput;
 
+/**
+ * 用户更新输入参数
+ * 
+ * 用于更新用户。
+ */
 #[derive(Deserialize, Validate)]
 pub struct UpdateUserInput {
     pub id: String,

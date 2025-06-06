@@ -1,3 +1,20 @@
+/**
+ * 系统初始化模块
+ * 
+ * 本模块负责系统各个组件的初始化工作，包括：
+ * - 配置初始化
+ * - 数据库连接初始化
+ * - Redis连接初始化
+ * - JWT配置初始化
+ * - 事件通道初始化
+ * - 路由初始化
+ * - 日志系统初始化
+ * - 其他系统组件的初始化
+ * 
+ * 这些初始化工作确保系统在启动时所有必要的组件
+ * 都正确配置和初始化。
+ */
+
 pub use access_key_initialization::initialize_access_key;
 pub use aws_s3_initialization::{init_primary_s3, init_s3_pools};
 pub use casbin_initialization::initialize_casbin;

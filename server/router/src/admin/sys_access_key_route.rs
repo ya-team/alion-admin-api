@@ -1,3 +1,12 @@
+/**
+ * 访问密钥路由模块
+ * 
+ * 该模块提供了访问密钥相关的路由功能，包括：
+ * - 获取访问密钥列表
+ * - 创建访问密钥
+ * - 删除访问密钥
+ */
+
 use axum::{
     http::Method,
     routing::{delete, get, post},
@@ -9,10 +18,23 @@ use super::route_constants::{
     AUTH_KEY_PATH, SERVICE_NAME_AUTH_KEY, ROUTE_ROOT, ROUTE_ID, build_route_path,
 };
 
+/**
+ * 访问密钥路由结构体
+ * 
+ * 用于管理和注册访问密钥相关的路由。
+ */
 #[derive(Debug)]
 pub struct SysAccessKeyRouter;
 
 impl SysAccessKeyRouter {
+    /**
+     * 初始化访问密钥路由
+     * 
+     * 注册并返回访问密钥相关的所有路由。
+     * 
+     * # 返回
+     * * `Router` - 配置好的路由实例
+     */
     pub async fn init_access_key_router() -> Router {
         // 注册路由信息到全局路由表
         Self::register_access_key_routes().await;
@@ -26,7 +48,11 @@ impl SysAccessKeyRouter {
         Router::new().nest(&build_route_path(AUTH_KEY_PATH, ""), router)
     }
 
-    /// 注册访问密钥相关的路由信息
+    /**
+     * 注册访问密钥相关的路由信息
+     * 
+     * 将访问密钥相关的路由信息注册到全局路由表中。
+     */
     async fn register_access_key_routes() {
         let routes = [
             (ROUTE_ROOT, Method::GET, "获取访问密钥列表"),

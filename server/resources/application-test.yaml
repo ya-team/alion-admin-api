@@ -1,3 +1,10 @@
+# 数据库配置
+# url: 数据库连接字符串，格式为 postgres://用户名:密码@主机:端口/数据库名
+# max_connections: 最大连接数
+# min_idle: 最小空闲连接数
+# connect_timeout: 连接超时时间（秒）
+# idle_timeout: 空闲连接超时时间（秒）
+# max_lifetime: 连接最大生命周期（秒）
 database:
     url: "postgres://postgres:123456@localhost:5432/alion-admin"
     max_connections: 10
@@ -5,23 +12,39 @@ database:
     connect_timeout: 30
     idle_timeout: 600
     max_lifetime: 3600
+
+# 服务配置
+# host: 监听地址
+# port: 监听端口
 server:
     host: "0.0.0.0"
     port: 9528
+
+# JWT 配置
+# secret: JWT密钥
+# access_token_expire: 访问令牌过期时间（秒）
+# refresh_token_expire: 刷新令牌过期时间（秒）
+# issuer: 签发者
+# audience: 受众
 jwt:
     secret: "alion-admin"
     access_token_expire: 7200
     refresh_token_expire: 604800
     issuer: "git@github.com:ya-team/alion-admin-api.git"
     audience: "alion-admin"
+
+# Redis 配置
+# mode: 连接模式（single 单机，cluster 集群）
+# url: 单机模式下的Redis连接地址
 redis:
     mode: single
     url: "redis://password@127.0.0.1:6379/0"
+
 # 由于本项目最终目标可能仅仅作为一般rbac项目,因此redis作为可选组件,可以根据实际情况进行按需使用
 # 有需求自行取消注释
 # redis:
-#     mode: cluster
-#     urls:
+#     mode: cluster  # 连接模式：cluster为集群
+#     urls:          # 集群模式下的Redis节点列表
 #         - "redis://alion:123456@127.0.0.1:7001"
 #         - "redis://alion:123456@127.0.0.1:7002"
 #         - "redis://alion:123456@127.0.0.1:7003"
@@ -29,10 +52,10 @@ redis:
 #         - "redis://alion:123456@127.0.0.1:7005"
 #         - "redis://alion:123456@127.0.0.1:7006"
 # redis_instances:
-#     - name: "cache"
+#     - name: "cache"   # 实例名称
 #       redis:
-#           mode: single
-#           url: "redis://:123456@localhost:6379/11"
+#           mode: single  # 连接模式
+#           url: "redis://:123456@localhost:6379/11"  # 连接地址
 #     - name: "test"
 #       redis:
 #           mode: single

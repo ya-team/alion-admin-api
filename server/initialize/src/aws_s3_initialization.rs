@@ -1,4 +1,13 @@
-#![allow(dead_code)]
+/**
+ * AWS S3初始化模块
+ * 
+ * 本模块负责初始化AWS S3存储服务，包括：
+ * - 初始化主S3客户端
+ * - 初始化S3连接池
+ * - 管理S3客户端连接
+ * - 提供S3操作功能
+ */
+#[allow(dead_code)]
 use std::{process, sync::Arc};
 use std::error::Error;
 
@@ -12,7 +21,12 @@ use server_global::global::{get_config, GLOBAL_PRIMARY_S3, GLOBAL_S3_POOL};
 
 use crate::{project_error, project_info};
 
-/// 初始化主 S3 客户端
+/**
+ * 初始化主S3客户端
+ * 
+ * 根据配置创建并初始化主S3客户端连接。
+ * 如果初始化失败，程序将退出。
+ */
 pub async fn init_primary_s3() {
     if let Some(config) = get_config::<S3Config>().await {
         match create_s3_client(&config).await {
@@ -28,7 +42,12 @@ pub async fn init_primary_s3() {
     }
 }
 
-/// 初始化所有 S3 客户端
+/**
+ * 初始化所有S3客户端
+ * 
+ * 从配置中读取所有S3实例配置，
+ * 并为每个实例创建S3客户端连接。
+ */
 pub async fn init_s3_pools() {
     if let Some(s3_instances_config) = get_config::<OptionalConfigs<S3InstancesConfig>>().await {
         if let Some(s3_instances) = &s3_instances_config.configs {
@@ -37,6 +56,16 @@ pub async fn init_s3_pools() {
     }
 }
 
+/**
+ * 初始化S3连接池
+ * 
+ * # 参数
+ * - s3_instances_config: S3实例配置列表
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 pub async fn init_s3_pool(
     s3_instances_config: Option<Vec<S3InstancesConfig>>,
 ) -> Result<(), String> {
@@ -48,6 +77,17 @@ pub async fn init_s3_pool(
     Ok(())
 }
 
+/**
+ * 初始化单个S3连接
+ * 
+ * # 参数
+ * - name: S3实例名称
+ * - config: S3配置信息
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 async fn init_s3_connection(name: &str, config: &S3Config) -> Result<(), String> {
     match create_s3_client(config).await {
         Ok(client) => {
@@ -67,6 +107,23 @@ async fn init_s3_connection(name: &str, config: &S3Config) -> Result<(), String>
     }
 }
 
+/**
+ * 创建S3客户端
+ * 
+ * # 参数
+ * - config: S3配置信息
+ * 
+ * # 返回
+ * - 成功：返回S3Client实例
+ * - 失败：返回错误信息
+ * 
+ * # 处理流程
+ * 1. 配置AWS SDK
+ * 2. 设置区域
+ * 3. 配置端点
+ * 4. 设置认证信息
+ * 5. 创建客户端
+ */
 pub async fn create_s3_client(config: &S3Config) -> Result<S3Client, Box<dyn Error>> {
     let mut sdk_config = aws_config::defaults(BehaviorVersion::latest());
     
@@ -97,22 +154,60 @@ pub async fn create_s3_client(config: &S3Config) -> Result<S3Client, Box<dyn Err
     Ok(client)
 }
 
-/// 获取主要的 S3 客户端
+/**
+ * 获取主S3客户端
+ * 
+ * # 返回
+ * - 成功：返回主S3客户端实例
+ * - 失败：返回None
+ */
+#[allow(dead_code)]
 pub async fn get_primary_s3_client() -> Option<Arc<S3Client>> {
     GLOBAL_PRIMARY_S3.read().await.clone()
 }
 
-/// 获取命名的 S3 客户端
+/**
+ * 获取命名的S3客户端
+ * 
+ * # 参数
+ * - name: S3实例名称
+ * 
+ * # 返回
+ * - 成功：返回对应的S3客户端实例
+ * - 失败：返回None
+ */
+#[allow(dead_code)]
 pub async fn get_s3_pool_connection(name: &str) -> Option<Arc<S3Client>> {
     GLOBAL_S3_POOL.read().await.get(name).cloned()
 }
 
-/// 添加或更新 S3 客户端池中的客户端
+/**
+ * 添加或更新S3客户端
+ * 
+ * # 参数
+ * - name: S3实例名称
+ * - config: S3配置信息
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
+#[allow(dead_code)]
 pub async fn add_or_update_s3_pool(name: &str, config: &S3Config) -> Result<(), String> {
     init_s3_connection(name, config).await
 }
 
-/// 移除命名的 S3 客户端
+/**
+ * 移除S3客户端
+ * 
+ * # 参数
+ * - name: S3实例名称
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
+#[allow(dead_code)]
 pub async fn remove_s3_pool(name: &str) -> Result<(), String> {
     let mut s3_pool = GLOBAL_S3_POOL.write().await;
     s3_pool

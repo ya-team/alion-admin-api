@@ -22,6 +22,7 @@ mime = { workspace = true }
 chrono = { workspace = true }
 sea-orm = { workspace = true }
 ulid = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
 
 redis = { workspace = true }
 mongodb = { workspace = true }

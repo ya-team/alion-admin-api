@@ -36,6 +36,7 @@ tokio = { version = "1", default-features = false }             # 异步运行�
 async-trait = { version = "0.1", default-features = false }     # 异步 trait 支持
 async-std = { version = "1.13", default-features = false }      # 另一个异步库
 futures = "0.3"                                                 # futures 库，用于异步编程
+uuid = { version = "1.7", features = ["v4", "serde"] }          # UUID 生成和处理库
 
 # =========================================
 # Web框架和中间件（底层 Web 框架）

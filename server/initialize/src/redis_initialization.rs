@@ -1,4 +1,15 @@
 #![allow(dead_code)]
+
+/**
+ * Redis初始化模块
+ * 
+ * 本模块负责初始化和管理Redis连接，包括：
+ * - 初始化主Redis连接
+ * - 初始化Redis连接池
+ * - 管理Redis集群和单机模式
+ * - 提供Redis连接操作功能
+ */
+
 use redis::{cluster::ClusterClient, Client};
 use server_config::{OptionalConfigs, RedisConfig, RedisInstancesConfig, RedisMode};
 use server_global::global::{get_config, RedisConnection, GLOBAL_PRIMARY_REDIS, GLOBAL_REDIS_POOL};
@@ -6,7 +17,12 @@ use std::{process, sync::Arc};
 
 use crate::{project_error, project_info};
 
-/// 初始化主Redis
+/**
+ * 初始化主Redis连接
+ * 
+ * 创建并初始化主Redis连接，支持集群和单机模式。
+ * 如果初始化失败，程序将退出。
+ */
 pub async fn init_primary_redis() {
     if let Some(config) = get_config::<RedisConfig>().await {
         match create_redis_connection(&config).await {
@@ -29,6 +45,19 @@ pub async fn init_primary_redis() {
     }
 }
 
+/**
+ * 创建Redis连接
+ * 
+ * # 参数
+ * - config: Redis配置信息
+ * 
+ * # 返回
+ * - 成功：返回Redis连接实例
+ * - 失败：返回错误信息
+ * 
+ * # 处理流程
+ * 根据配置的模式（集群/单机）创建相应的连接
+ */
 async fn create_redis_connection(config: &RedisConfig) -> Result<RedisConnection, String> {
     if config.mode == RedisMode::Cluster {
         create_cluster_connection(config).await
@@ -37,6 +66,16 @@ async fn create_redis_connection(config: &RedisConfig) -> Result<RedisConnection
     }
 }
 
+/**
+ * 创建单机Redis连接
+ * 
+ * # 参数
+ * - config: Redis配置信息
+ * 
+ * # 返回
+ * - 成功：返回单机Redis连接实例
+ * - 失败：返回错误信息
+ */
 async fn create_single_connection(config: &RedisConfig) -> Result<RedisConnection, String> {
     let url = config
         .get_url()
@@ -50,6 +89,16 @@ async fn create_single_connection(config: &RedisConfig) -> Result<RedisConnectio
     Ok(RedisConnection::Single(Arc::new(client)))
 }
 
+/**
+ * 测试单机Redis连接
+ * 
+ * # 参数
+ * - client: Redis客户端实例
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 async fn test_single_connection(client: &Client) -> Result<(), String> {
     let mut con = client
         .get_multiplexed_async_connection()
@@ -64,6 +113,16 @@ async fn test_single_connection(client: &Client) -> Result<(), String> {
     Ok(())
 }
 
+/**
+ * 创建Redis集群连接
+ * 
+ * # 参数
+ * - config: Redis配置信息
+ * 
+ * # 返回
+ * - 成功：返回集群Redis连接实例
+ * - 失败：返回错误信息
+ */
 async fn create_cluster_connection(config: &RedisConfig) -> Result<RedisConnection, String> {
     let urls = config
         .get_urls()
@@ -82,6 +141,16 @@ async fn create_cluster_connection(config: &RedisConfig) -> Result<RedisConnecti
     Ok(RedisConnection::Cluster(Arc::new(client)))
 }
 
+/**
+ * 测试Redis集群连接
+ * 
+ * # 参数
+ * - client: Redis集群客户端实例
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 async fn test_cluster_connection(client: &ClusterClient) -> Result<(), String> {
     let mut con = client
         .get_async_connection()
@@ -96,6 +165,16 @@ async fn test_cluster_connection(client: &ClusterClient) -> Result<(), String> {
     Ok(())
 }
 
+/**
+ * 初始化Redis连接池
+ * 
+ * # 参数
+ * - redis_instances_config: Redis实例配置列表
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 pub async fn init_redis_pool(
     redis_instances_config: Option<Vec<RedisInstancesConfig>>,
 ) -> Result<(), String> {
@@ -107,6 +186,17 @@ pub async fn init_redis_pool(
     Ok(())
 }
 
+/**
+ * 初始化单个Redis连接
+ * 
+ * # 参数
+ * - name: Redis实例名称
+ * - config: Redis配置信息
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 async fn init_redis_connection(name: &str, config: &RedisConfig) -> Result<(), String> {
     match create_redis_connection(config).await {
         Ok(connection) => {
@@ -125,7 +215,12 @@ async fn init_redis_connection(name: &str, config: &RedisConfig) -> Result<(), S
     }
 }
 
-/// 初始化所有 Redis 连接
+/**
+ * 初始化所有Redis连接
+ * 
+ * 从配置中读取所有Redis实例配置，
+ * 并为每个实例创建Redis连接。
+ */
 pub async fn init_redis_pools() {
     if let Some(redis_instances_config) =
         get_config::<OptionalConfigs<RedisInstancesConfig>>().await
@@ -136,18 +231,56 @@ pub async fn init_redis_pools() {
     }
 }
 
+/**
+ * 获取主Redis连接
+ * 
+ * # 返回
+ * - 成功：返回主Redis连接实例
+ * - 失败：返回None
+ */
 pub async fn get_primary_redis() -> Option<RedisConnection> {
     GLOBAL_PRIMARY_REDIS.read().await.clone()
 }
 
+/**
+ * 获取命名的Redis连接
+ * 
+ * # 参数
+ * - name: Redis实例名称
+ * 
+ * # 返回
+ * - 成功：返回对应的Redis连接实例
+ * - 失败：返回None
+ */
 pub async fn get_redis_pool_connection(name: &str) -> Option<RedisConnection> {
     GLOBAL_REDIS_POOL.read().await.get(name).cloned()
 }
 
+/**
+ * 添加或更新Redis连接
+ * 
+ * # 参数
+ * - name: Redis实例名称
+ * - config: Redis配置信息
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 pub async fn add_or_update_redis_pool(name: &str, config: &RedisConfig) -> Result<(), String> {
     init_redis_connection(name, config).await
 }
 
+/**
+ * 移除Redis连接
+ * 
+ * # 参数
+ * - name: Redis实例名称
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 pub async fn remove_redis_pool(name: &str) -> Result<(), String> {
     let mut redis_pool = GLOBAL_REDIS_POOL.write().await;
     redis_pool

@@ -2,47 +2,50 @@ use std::{collections::HashMap, hash::Hash};
 
 use rayon::prelude::*;
 
-/// 通用树构建器
-///
-/// 提供高性能的树结构构建功能，支持并行处理和自定义排序。
-///
-/// # 特点
-/// - 高性能：支持并行排序和处理
-/// - 内存优化：智能预分配内存
-/// - 通用性：支持任意数据类型
-/// - 灵活性：支持自定义ID类型和排序规则
+/**
+ * 通用树构建器
+ *
+ * 提供高性能的树结构构建功能，支持并行处理和自定义排序。
+ *
+ * # 特点
+ * - 高性能：支持并行排序和处理
+ * - 内存优化：智能预分配内存
+ * - 通用性：支持任意数据类型
+ * - 灵活性：支持自定义ID类型和排序规则
+ */
 pub struct TreeBuilder;
 
 impl TreeBuilder {
-    /// 构建有序树结构（支持并行）
-    ///
-    /// # 参数
-    /// - `nodes`: 源节点集合
-    /// - `id_fn`: 获取节点ID的函数
-    /// - `pid_fn`: 获取父节点ID的函数
-    /// - `order_fn`: 获取排序键的函数
-    /// - `set_children_fn`: 设置子节点的函数
-    ///
-    /// # 类型参数
-    /// - `T`: 节点类型
-    /// - `Id`: ID类型，必须可比较和可哈希
-    /// - `Order`: 排序键类型，必须可比较
-    ///
-    /// # 示例
-    /// 
-    /// let tree = TreeBuilder::build(
-    ///     nodes,
-    ///     |node| node.id,                            // ID获取器
-    ///     |node| node.parent_id,                     // 父ID获取器
-    ///     |node| node.sequence,                      // 排序键
-    ///     |node, children| node.children = children, // 设置子节点
-    /// );
-    /// 
-    ///
-    /// # 性能注意事项
-    /// - 对于大数据集（>1000条），会自动调整内存分配策略
-    /// - 使用并行排序提高性能
-    /// - 预分配内存减少重新分配
+    /**
+     * 构建有序树结构（支持并行）
+     *
+     * # 参数
+     * - `nodes`: 源节点集合
+     * - `id_fn`: 获取节点ID的函数
+     * - `pid_fn`: 获取父节点ID的函数
+     * - `order_fn`: 获取排序键的函数
+     * - `set_children_fn`: 设置子节点的函数
+     *
+     * # 类型参数
+     * - `T`: 节点类型
+     * - `Id`: ID类型，必须可比较和可哈希
+     * - `Order`: 排序键类型，必须可比较
+     *
+     * # 示例
+     * 
+     * let tree = TreeBuilder::build(
+     *     nodes,
+     *     |node| node.id,                            // ID获取器
+     *     |node| node.parent_id,                     // 父ID获取器
+     *     |node| node.sequence,                      // 排序键
+     *     |node, children| node.children = children, // 设置子节点
+     * );
+     *
+     * # 性能注意事项
+     * - 对于大数据集（>1000条），会自动调整内存分配策略
+     * - 使用并行排序提高性能
+     * - 预分配内存减少重新分配
+     */
     #[inline]
     pub fn build<T, Id, Order, F1, F2, F3, F4>(
         mut nodes: Vec<T>,
@@ -98,27 +101,28 @@ impl TreeBuilder {
         root_nodes
     }
 
-    /// 构建无序树结构（最高性能）
-    ///
-    /// 与 `build` 方法相比，此方法:
-    /// - 不进行排序，性能更高
-    /// - 不需要并行支持
-    /// - 内存占用更少
-    ///
-    /// # 使用场景
-    /// - 数据已经有序
-    /// - 不需要排序
-    /// - 追求最高性能
-    ///
-    /// # 示例
-    /// 
-    /// let tree = TreeBuilder::build_fast(
-    ///     nodes,
-    ///     |node| node.id,
-    ///     |node| node.parent_id,
-    ///     |node, children| node.children = children,
-    /// );
-    /// 
+    /**
+     * 构建无序树结构（最高性能）
+     *
+     * 与 `build` 方法相比，此方法:
+     * - 不进行排序，性能更高
+     * - 不需要并行支持
+     * - 内存占用更少
+     *
+     * # 使用场景
+     * - 数据已经有序
+     * - 不需要排序
+     * - 追求最高性能
+     *
+     * # 示例
+     * 
+     * let tree = TreeBuilder::build_fast(
+     *     nodes,
+     *     |node| node.id,
+     *     |node| node.parent_id,
+     *     |node, children| node.children = children,
+     * );
+     */
     #[inline]
     pub fn build_fast<T, Id, F1, F2, F3>(
         nodes: Vec<T>,
@@ -164,7 +168,9 @@ impl TreeBuilder {
         root_nodes
     }
 
-    /// 计算最优容量分配
+    /**
+     * 计算最优容量分配
+     */
     #[inline]
     fn calculate_capacity(len: usize) -> (usize, usize) {
         if len < 1000 {
@@ -174,7 +180,9 @@ impl TreeBuilder {
         }
     }
 
-    /// 递归构建树结构
+    /**
+     * 递归构建树结构
+     */
     #[inline]
     fn attach_children<T, Id, F1, F2>(
         nodes: &mut Vec<T>,
@@ -209,6 +217,14 @@ mod tests {
         children: Vec<Node>,
     }
 
+    /**
+     * 测试树构建功能
+     * 
+     * 验证树构建器是否能正确构建有序树结构，包括：
+     * - 根节点的正确识别
+     * - 子节点的正确挂载
+     * - 节点的正确排序
+     */
     #[test]
     fn test_build_tree() {
         let nodes = vec![
@@ -246,6 +262,15 @@ mod tests {
         assert_eq!(tree[0].children[1].id, 2);
     }
 
+    /**
+     * 测试性能
+     * 
+     * 比较并行构建和快速构建的性能差异：
+     * - 生成10000个节点的测试数据
+     * - 测试并行构建的性能
+     * - 测试快速构建的性能
+     * - 输出两种方法的执行时间
+     */
     #[test]
     fn test_performance() {
         let mut nodes = Vec::with_capacity(10000);

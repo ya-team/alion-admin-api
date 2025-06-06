@@ -1,23 +1,47 @@
+/**
+ * IP地址搜索模块
+ * 
+ * 该模块提供了高性能的IP地址搜索功能，包括：
+ * - 向量索引缓存
+ * - 全量数据缓存
+ * - 二分查找算法
+ * - 多线程安全
+ */
+
 use std::{error::Error, fmt::Display, fs::File, io::Read, path::Path};
 
 use once_cell::sync::OnceCell;
 
 use crate::ToUIntIP;
 
+/** 头部信息长度 */
 const HEADER_INFO_LENGTH: usize = 256;
+/** 向量索引列数 */
 const VECTOR_INDEX_COLS: usize = 256;
+/** 向量索引大小 */
 const VECTOR_INDEX_SIZE: usize = 8;
+/** 段索引大小 */
 const SEGMENT_INDEX_SIZE: usize = 14;
+/** 向量索引总长度 */
 const VECTOR_INDEX_LENGTH: usize = 512 * 1024;
 
+/** XDB文件路径环境变量名 */
 const XDB_FILEPATH_ENV: &str = "XDB_FILEPATH";
 
-// 只保留一个缓存，用于存储完整数据
+/** 全量数据缓存 */
 static CACHE: OnceCell<Vec<u8>> = OnceCell::new();
 
-// 添加专门的向量缓存
+/** 向量索引缓存 */
 static VECTOR_CACHE: OnceCell<&'static [u8]> = OnceCell::new();
 
+/**
+ * 默认检测XDB文件路径
+ * 
+ * 在项目目录中递归查找ip2region.xdb文件。
+ * 
+ * # 返回
+ * * `Result<String, Box<dyn Error>>` - 成功返回文件路径，失败返回错误
+ */
 fn default_detect_xdb_file() -> Result<String, Box<dyn Error>> {
     let prefix = "../".to_owned();
     for recurse in 1..4 {
@@ -29,6 +53,19 @@ fn default_detect_xdb_file() -> Result<String, Box<dyn Error>> {
     Err("default filepath not find the xdb file".into())
 }
 
+/**
+ * 根据大小获取数据块
+ * 
+ * 从字节数组中安全地读取指定大小和偏移量的数据。
+ * 
+ * # 参数
+ * * `bytes` - 源字节数组
+ * * `offset` - 偏移量
+ * * `length` - 读取长度（支持2、4字节或其他长度）
+ * 
+ * # 返回
+ * * `usize` - 读取的数据值
+ */
 #[inline(always)]
 pub fn get_block_by_size(bytes: &[u8], offset: usize, length: usize) -> usize {
     unsafe {
@@ -53,6 +90,20 @@ pub fn get_block_by_size(bytes: &[u8], offset: usize, length: usize) -> usize {
     }
 }
 
+/**
+ * 根据IP地址搜索位置信息
+ * 
+ * 使用向量索引和二分查找算法快速定位IP地址对应的位置信息。
+ * 
+ * # 类型参数
+ * * `T` - 支持ToUIntIP特征的类型
+ * 
+ * # 参数
+ * * `ip` - IP地址（支持多种格式）
+ * 
+ * # 返回
+ * * `Result<String, Box<dyn Error>>` - 成功返回位置信息，失败返回错误
+ */
 #[inline(always)]
 pub fn search_by_ip<T>(ip: T) -> Result<String, Box<dyn Error>>
 where
@@ -104,7 +155,14 @@ where
     }
 }
 
-// 优化向量索引缓存访问
+/**
+ * 获取向量索引缓存
+ * 
+ * 返回向量索引数据的只读引用，使用静态缓存优化性能。
+ * 
+ * # 返回
+ * * `&'static [u8]` - 向量索引数据的只读引用
+ */
 #[inline(always)]
 pub fn get_vector_index_cache() -> &'static [u8] {
     // 使用静态缓存，只计算一次
@@ -115,6 +173,14 @@ pub fn get_vector_index_cache() -> &'static [u8] {
     })
 }
 
+/**
+ * 获取全量数据缓存
+ * 
+ * 返回XDB文件的完整数据，使用静态缓存优化性能。
+ * 
+ * # 返回
+ * * `&'static Vec<u8>` - 全量数据的只读引用
+ */
 #[inline(always)]
 pub fn get_full_cache() -> &'static Vec<u8> {
     CACHE.get_or_init(|| {
@@ -135,6 +201,14 @@ pub fn get_full_cache() -> &'static Vec<u8> {
     })
 }
 
+/**
+ * 初始化搜索器
+ * 
+ * 设置XDB文件路径并预热缓存。
+ * 
+ * # 参数
+ * * `xdb_filepath` - 可选的XDB文件路径，如果为None则使用默认路径
+ */
 pub fn searcher_init(xdb_filepath: Option<String>) {
     let xdb_filepath = xdb_filepath.unwrap_or_else(|| default_detect_xdb_file().unwrap());
     std::env::set_var(XDB_FILEPATH_ENV, xdb_filepath);
@@ -149,7 +223,11 @@ mod tests {
 
     use super::*;
 
-    /// test all types find correct
+    /**
+     * 测试多种类型的IP地址搜索
+     * 
+     * 验证不同格式的IP地址（字符串、数字、Ipv4Addr）都能正确搜索。
+     */
     #[test]
     fn test_multi_type_ip() {
         searcher_init(None);
@@ -160,6 +238,11 @@ mod tests {
         search_by_ip(Ipv4Addr::from_str("1.1.1.1").unwrap()).unwrap();
     }
 
+    /**
+     * 测试IP地址范围搜索
+     * 
+     * 验证IP地址范围内的所有地址都能正确匹配到对应的位置信息。
+     */
     #[test]
     fn test_match_all_ip_correct() {
         searcher_init(None);
@@ -180,6 +263,11 @@ mod tests {
         }
     }
 
+    /**
+     * 测试多线程下的缓存加载
+     * 
+     * 验证在多线程环境下XDB文件只会被加载一次。
+     */
     #[test]
     fn test_multi_thread_only_load_xdb_once() {
         searcher_init(None);
@@ -192,6 +280,11 @@ mod tests {
         handle.join().unwrap();
     }
 
+    /**
+     * 测试多次初始化搜索器
+     * 
+     * 验证多次调用searcher_init不会导致问题。
+     */
     #[test]
     fn test_multi_searcher_init() {
         for _ in 0..5 {

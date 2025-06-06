@@ -1,114 +1,201 @@
-/// 日志配置模块
-/// 
-/// 定义了应用程序日志记录的相关参数，包括日志级别、输出格式和存储位置
+/**
+ * 日志配置模块
+ * 
+ * 定义了应用程序的日志记录参数
+ */
 
 use serde::Deserialize;
 
-/// 日志配置结构体
-/// 
-/// 包含日志记录所需的所有参数，包括：
-/// - 日志级别
-/// - 日志文件配置
-/// - 日志格式设置
+/**
+ * 日志配置结构体
+ * 
+ * 包含日志记录所需的所有参数，包括：
+ * - 日志级别
+ * - 输出目标
+ * - 格式化选项
+ */
 #[derive(Deserialize, Debug, Clone)]
 pub struct LogConfig {
-    /// 日志级别
-    /// 
-    /// 控制日志记录的详细程度
-    /// 可选值：
-    /// - "error": 只记录错误信息
-    /// - "warn": 记录警告和错误信息
-    /// - "info": 记录一般信息、警告和错误
-    /// - "debug": 记录调试信息、一般信息、警告和错误
-    /// - "trace": 记录所有级别的信息
+    /**
+     * 日志级别
+     * 
+     * 控制日志记录的详细程度
+     * 可选值：trace, debug, info, warn, error
+     */
     pub level: String,
 
-    /// 日志文件路径
-    /// 
-    /// 日志文件的存储位置
-    /// 可以是相对路径或绝对路径
-    /// 例如：
-    /// - "logs/app.log"
-    /// - "/var/log/myapp/app.log"
-    pub file_path: String,
-
-    /// 是否启用控制台输出
-    /// 
-    /// 控制是否将日志同时输出到控制台
-    /// 在开发环境中通常启用，生产环境可以禁用
+    /**
+     * 是否启用控制台输出
+     * 
+     * 控制是否将日志输出到控制台
+     */
     pub enable_console: bool,
 
-    /// 是否启用文件轮转
-    /// 
-    /// 控制是否在日志文件达到一定大小时进行轮转
-    /// 启用后可以防止日志文件过大
+    /**
+     * 是否启用文件输出
+     * 
+     * 控制是否将日志写入文件
+     */
+    pub enable_file: bool,
+
+    /**
+     * 日志文件路径
+     * 
+     * 日志文件的存储路径
+     * 仅在启用文件输出时有效
+     */
+    pub file_path: Option<String>,
+
+    /**
+     * 是否启用异步日志
+     * 
+     * 控制是否使用异步方式记录日志
+     * 可以提高性能，但可能丢失部分日志
+     */
+    pub enable_async: bool,
+
+    /**
+     * 异步缓冲区大小
+     * 
+     * 异步日志的缓冲区大小
+     * 仅在启用异步日志时有效
+     */
+    pub async_buffer_size: Option<usize>,
+
+    /**
+     * 是否启用结构化日志
+     * 
+     * 控制是否使用JSON格式记录日志
+     * 便于日志分析和处理
+     */
+    pub enable_structured: bool,
+
+    /**
+     * 是否启用彩色输出
+     * 
+     * 控制是否在控制台使用彩色输出
+     * 仅在启用控制台输出时有效
+     */
+    pub enable_colors: bool,
+
+    /**
+     * 是否启用时间戳
+     * 
+     * 控制是否在日志中包含时间戳
+     */
+    pub enable_timestamp: bool,
+
+    /**
+     * 时间戳格式
+     * 
+     * 日志中时间戳的格式
+     * 仅在启用时间戳时有效
+     */
+    pub timestamp_format: Option<String>,
+
+    /**
+     * 是否启用线程ID
+     * 
+     * 控制是否在日志中包含线程ID
+     */
+    pub enable_thread_id: bool,
+
+    /**
+     * 是否启用模块路径
+     * 
+     * 控制是否在日志中包含模块路径
+     */
+    pub enable_module_path: bool,
+
+    /**
+     * 是否启用行号
+     * 
+     * 控制是否在日志中包含行号
+     */
+    pub enable_line_number: bool,
+
+    /**
+     * 是否启用文件轮转
+     * 
+     * 控制是否启用日志文件轮转
+     * 仅在启用文件输出时有效
+     */
     pub enable_rotation: bool,
 
-    /// 单个日志文件最大大小（字节）
-    /// 
-    /// 当日志文件达到此大小时进行轮转
-    /// 仅在启用文件轮转时有效
-    pub max_file_size: Option<u64>,
-
-    /// 保留的日志文件数量
-    /// 
-    /// 控制保留多少个历史日志文件
-    /// 仅在启用文件轮转时有效
-    pub max_files: Option<u32>,
-
-    /// 日志格式
-    /// 
-    /// 控制日志输出的格式
-    /// 可选值：
-    /// - "json": JSON格式，便于机器处理
-    /// - "text": 文本格式，便于人工阅读
-    pub format: LogFormat,
-
-    /// 是否包含时间戳
-    /// 
-    /// 控制是否在日志中包含时间戳
-    /// 建议在生产环境中启用
-    pub include_timestamp: bool,
-
-    /// 是否包含线程ID
-    /// 
-    /// 控制是否在日志中包含线程ID
-    /// 对于多线程应用程序很有用
-    pub include_thread_id: bool,
-
-    /// 是否包含文件位置
-    /// 
-    /// 控制是否在日志中包含代码文件位置
-    /// 对于调试很有用，但可能影响性能
-    pub include_file_location: bool,
+    /**
+     * 轮转配置
+     * 
+     * 日志文件轮转的具体参数
+     * 仅在启用文件轮转时有效
+     */
+    pub rotation: Option<LogRotationConfig>,
 }
 
-/// 日志格式枚举
-/// 
-/// 定义了日志输出的格式类型
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-pub enum LogFormat {
-    /// JSON格式
-    /// 
-    /// 将日志输出为JSON格式，便于机器处理和分析
-    /// 例如：
-    /// json
-    /// {
-    ///   "timestamp": "2024-03-20T10:00:00Z",
-    ///   "level": "INFO",
-    ///   "message": "Application started",
-    ///   "thread_id": "123",
-    ///   "file": "src/main.rs:10"
-    /// }
-    /// 
-    Json,
+/**
+ * 日志轮转配置结构体
+ * 
+ * 定义了日志文件轮转的具体参数
+ */
+#[derive(Deserialize, Debug, Clone)]
+pub struct LogRotationConfig {
+    /**
+     * 最大文件大小（字节）
+     * 
+     * 单个日志文件的最大大小
+     * 超过此大小将触发轮转
+     */
+    pub max_size: u64,
 
-    /// 文本格式
-    /// 
-    /// 将日志输出为人类可读的文本格式
-    /// 例如：
-    /// 
-    /// [2024-03-20T10:00:00Z] INFO [thread-123] src/main.rs:10 - Application started
-    /// 
-    Text,
+    /**
+     * 最大文件数量
+     * 
+     * 保留的最大日志文件数量
+     * 超过此数量将删除最旧的日志文件
+     */
+    pub max_files: usize,
+
+    /**
+     * 是否压缩旧文件
+     * 
+     * 控制是否压缩轮转后的旧日志文件
+     */
+    pub compress: bool,
+
+    /**
+     * 轮转策略
+     * 
+     * 日志文件轮转的策略
+     * 支持按大小、时间或两者结合
+     */
+    pub strategy: RotationStrategy,
+}
+
+/**
+ * 轮转策略枚举
+ * 
+ * 定义了日志文件轮转的策略
+ */
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+pub enum RotationStrategy {
+    /**
+     * 按大小轮转
+     * 
+     * 当日志文件达到指定大小时进行轮转
+     */
+    Size,
+
+    /**
+     * 按时间轮转
+     * 
+     * 按指定的时间间隔进行轮转
+     */
+    Time,
+
+    /**
+     * 混合轮转
+     * 
+     * 同时考虑文件大小和时间间隔
+     * 任一条件满足即触发轮转
+     */
+    Hybrid,
 } 

@@ -1,51 +1,56 @@
-//! 系统认证服务模块
-//! 
-//! 该模块提供了用户认证相关的核心功能，包括：
-//! - 用户登录认证
-//! - 用户角色和权限验证
-//! - 用户路由获取
-//! - 登录事件处理
-//! 
-//! # 主要组件
-//! 
-//! ## 核心接口
-//! * `TAuthService`: 认证服务 trait，定义了认证相关的核心接口
-//! * `SysAuthService`: 认证服务实现，提供了具体的认证逻辑
-//! 
-//! ## 事件处理
-//! * `AuthEvent`: 认证事件，用于处理登录相关的异步事件
-//! * `auth_login_listener`: 登录事件监听器
-//! * `jwt_created_listener`: JWT创建事件监听器
-//! 
-//! ## 辅助功能
-//! * `generate_auth_output`: 生成认证输出
-//! * `send_auth_event`: 发送认证事件
-//! * `handle_auth_event`: 处理认证事件
-//! 
-//! # 使用示例
-//! use server_service::admin::sys_auth_service::*;
-//! 
-//! // 创建认证服务实例
-//! let auth_service = SysAuthService;
-//! 
-//! // 执行密码登录
-//! let output = auth_service.pwd_login(
-//!     db,
-//!     LoginInput {
-//!         username: "admin".to_string(),
-//!         password: "password".to_string(),
-//!     },
-//!     LoginContext {
-//!         client_ip: "127.0.0.1".to_string(),
-//!         client_port: Some(8080),
-//!         address: "localhost".to_string(),
-//!         user_agent: "Mozilla/5.0".to_string(),
-//!         request_id: "req-123".to_string(),
-//!         audience: Audience::Admin,
-//!         login_type: "password".to_string(),
-//!         domain: "example.com".to_string(),
-//!     },
-//! ).await?;
+/** 系统认证服务模块
+ * 
+ * 该模块提供了用户认证相关的核心功能，包括：
+ * - 用户登录认证
+ * - 用户角色和权限验证
+ * - 用户路由获取
+ * - 登录事件处理
+ * 
+ * 主要组件
+ * --------
+ * 
+ * 核心接口
+ * --------
+ * * `TAuthService`: 认证服务 trait，定义了认证相关的核心接口
+ * * `SysAuthService`: 认证服务实现，提供了具体的认证逻辑
+ * 
+ * 事件处理
+ * --------
+ * * `AuthEvent`: 认证事件，用于处理登录相关的异步事件
+ * * `auth_login_listener`: 登录事件监听器
+ * * `jwt_created_listener`: JWT创建事件监听器
+ * 
+ * 辅助功能
+ * --------
+ * * `generate_auth_output`: 生成认证输出
+ * * `send_auth_event`: 发送认证事件
+ * * `handle_auth_event`: 处理认证事件
+ * 
+ * 使用示例
+ * --------
+ * /* 创建认证服务实例
+ *  * let auth_service = SysAuthService;
+ *  * 
+ *  * // 执行密码登录
+ *  * let output = auth_service.pwd_login(
+ *  *     db,
+ *  *     LoginInput {
+ *  *         username: "admin".to_string(),
+ *  *         password: "password".to_string(),
+ *  *     },
+ *  *     LoginContext {
+ *  *         client_ip: "127.0.0.1".to_string(),
+ *  *         client_port: Some(8080),
+ *  *         address: "localhost".to_string(),
+ *  *         user_agent: "Mozilla/5.0".to_string(),
+ *  *         request_id: "req-123".to_string(),
+ *  *         audience: Audience::Admin,
+ *  *         login_type: "password".to_string(),
+ *  *         domain: "example.com".to_string(),
+ *  *     },
+ *  * ).await?;
+ *  */
+ */
 
 use std::{any::Any, sync::Arc};
 
@@ -82,22 +87,26 @@ use crate::admin::dto::sys_auth_dto::LoginContext;
 use crate::admin::event_handlers::auth_event_handler::{AuthEvent, AuthEventHandler};
 use crate::admin::errors::AuthError;
 
-/// 用户查询宏，用于构建包含域和组织信息的用户查询
-/// 
-/// 该宏封装了常用的用户查询字段，包括：
-/// - 用户基本信息（ID、用户名、密码等）
-/// - 域信息（域代码、域名称）
-/// 
-/// # 参数
-/// * `$query` - 查询构建器
-/// 
-/// # 返回
-/// * 构建好的查询，包含用户和域信息
-/// 
-/// # 使用示例
-/// 
-/// let query = select_user_with_domain_and_org_info!(SysUser::find());
-/// 
+/** 用户查询宏
+ * 
+ * 用于构建包含域和组织信息的用户查询，包括：
+ * - 用户基本信息（ID、用户名、密码等）
+ * - 域信息（域代码、域名称）
+ * 
+ * 参数
+ * --------
+ * * `$query` - 查询构建器
+ * 
+ * 返回
+ * --------
+ * * 构建好的查询，包含用户和域信息
+ * 
+ * 使用示例
+ * --------
+ * /* 构建用户查询
+ *  * let query = select_user_with_domain_and_org_info!(SysUser::find());
+ *  */
+ */
 macro_rules! select_user_with_domain_and_org_info {
     ($query:expr) => {{
         $query
@@ -113,24 +122,28 @@ macro_rules! select_user_with_domain_and_org_info {
     }};
 }
 
-/// 认证服务 trait
-/// 
-/// 定义了系统认证相关的核心接口，包括：
-/// - 密码登录认证
-/// - 用户路由获取
-/// - 用户基本信息验证
-/// - 用户角色获取
+/** 认证服务 trait
+ * 
+ * 定义了系统认证相关的核心接口，包括：
+ * - 密码登录认证
+ * - 用户路由获取
+ * - 用户基本信息验证
+ * - 用户角色获取
+ */
 #[async_trait]
 pub trait TAuthService: Send + Sync {
-    /// 执行密码登录认证
-    /// 
-    /// # 参数
-    /// * `db` - 数据库连接
-    /// * `input` - 登录输入信息
-    /// * `context` - 登录上下文信息
-    /// 
-    /// # 返回
-    /// * `Result<AuthOutput, AuthError>` - 认证输出或错误
+    /** 执行密码登录认证
+     * 
+     * 参数
+     * --------
+     * * `db` - 数据库连接
+     * * `input` - 登录输入信息
+     * * `context` - 登录上下文信息
+     * 
+     * 返回
+     * --------
+     * * `Result<AuthOutput, AuthError>` - 认证输出或错误
+     */
     async fn pwd_login(
         &self,
         db: Arc<DatabaseConnection>,
@@ -138,15 +151,18 @@ pub trait TAuthService: Send + Sync {
         context: LoginContext,
     ) -> Result<AuthOutput, AuthError>;
 
-    /// 获取用户路由信息
-    /// 
-    /// # 参数
-    /// * `db` - 数据库连接
-    /// * `role_codes` - 角色代码列表
-    /// * `domain` - 域代码
-    /// 
-    /// # 返回
-    /// * `Result<UserRoute, AuthError>` - 用户路由信息或错误
+    /** 获取用户路由信息
+     * 
+     * 参数
+     * --------
+     * * `db` - 数据库连接
+     * * `role_codes` - 角色代码列表
+     * * `domain` - 域代码
+     * 
+     * 返回
+     * --------
+     * * `Result<UserRoute, AuthError>` - 用户路由信息或错误
+     */
     async fn get_user_routes(
         &self,
         db: Arc<DatabaseConnection>,
@@ -154,16 +170,19 @@ pub trait TAuthService: Send + Sync {
         domain: &str,
     ) -> Result<UserRoute, AuthError>;
 
-    /// 验证用户基本信息
-    /// 
-    /// # 参数
-    /// * `db` - 数据库连接
-    /// * `identifier` - 用户标识（用户名）
-    /// * `password` - 密码
-    /// * `domain` - 域代码
-    /// 
-    /// # 返回
-    /// * `Result<UserWithDomainAndOrgOutput, AuthError>` - 用户信息或错误
+    /** 验证用户基本信息
+     * 
+     * 参数
+     * --------
+     * * `db` - 数据库连接
+     * * `identifier` - 用户标识（用户名）
+     * * `password` - 密码
+     * * `domain` - 域代码
+     * 
+     * 返回
+     * --------
+     * * `Result<UserWithDomainAndOrgOutput, AuthError>` - 用户信息或错误
+     */
     async fn verify_user_basic(
         &self,
         db: &Arc<DatabaseConnection>,
@@ -172,14 +191,17 @@ pub trait TAuthService: Send + Sync {
         domain: &str,
     ) -> Result<UserWithDomainAndOrgOutput, AuthError>;
 
-    /// 获取用户角色列表
-    /// 
-    /// # 参数
-    /// * `user_id` - 用户ID
-    /// * `db` - 数据库连接
-    /// 
-    /// # 返回
-    /// * `Result<Vec<String>, AuthError>` - 角色代码列表或错误
+    /** 获取用户角色列表
+     * 
+     * 参数
+     * --------
+     * * `user_id` - 用户ID
+     * * `db` - 数据库连接
+     * 
+     * 返回
+     * --------
+     * * `Result<Vec<String>, AuthError>` - 角色代码列表或错误
+     */
     async fn get_user_roles(
         &self,
         user_id: &str,
@@ -187,25 +209,29 @@ pub trait TAuthService: Send + Sync {
     ) -> Result<Vec<String>, AuthError>;
 }
 
-/// 系统认证服务实现
-/// 
-/// 提供了认证服务的具体实现，包括：
-/// - 用户登录认证
-/// - 用户角色和权限验证
-/// - 用户路由获取
+/** 系统认证服务实现
+ * 
+ * 提供了认证服务的具体实现，包括：
+ * - 用户登录认证
+ * - 用户角色和权限验证
+ * - 用户路由获取
+ */
 #[derive(Clone)]
 pub struct SysAuthService;
 
 impl SysAuthService {
-    /// 查找第一个有效的路由路径
-    /// 
-    /// 递归遍历路由树，返回第一个非空且非根路径的路由路径
-    /// 
-    /// # 参数
-    /// * `routes` - 路由列表
-    /// 
-    /// # 返回
-    /// * `Option<String>` - 找到的路由路径，如果没有找到则返回 None
+    /** 查找第一个有效的路由路径
+     * 
+     * 递归遍历路由树，返回第一个非空且非根路径的路由路径
+     * 
+     * 参数
+     * --------
+     * * `routes` - 路由列表
+     * 
+     * 返回
+     * --------
+     * * `Option<String>` - 找到的路由路径，如果没有找到则返回 None
+     */
     #[allow(dead_code)]
     fn find_first_valid_route(routes: &[MenuRoute]) -> Option<String> {
         for route in routes {
@@ -221,20 +247,23 @@ impl SysAuthService {
         None
     }
 
-    /// 检查登录安全性
-    /// 
-    /// 执行登录相关的安全检查，包括：
-    /// - 登录失败次数检查
-    /// - IP 黑名单检查
-    /// - 账号锁定检查
-    /// - 登录时间范围检查
-    /// 
-    /// # 参数
-    /// * `username` - 用户名
-    /// * `client_ip` - 客户端IP
-    /// 
-    /// # 返回
-    /// * `Result<(), AuthError>` - 检查结果
+    /** 检查登录安全性
+     * 
+     * 执行登录相关的安全检查，包括：
+     * - 登录失败次数检查
+     * - IP 黑名单检查
+     * - 账号锁定检查
+     * - 登录时间范围检查
+     * 
+     * 参数
+     * --------
+     * * `username` - 用户名
+     * * `client_ip` - 客户端IP
+     * 
+     * 返回
+     * --------
+     * * `Result<(), AuthError>` - 检查结果
+     */
     async fn check_login_security(
         &self,
         _username: &str,
@@ -248,17 +277,20 @@ impl SysAuthService {
         Ok(())
     }
 
-    /// 带安全检查的密码登录
-    /// 
-    /// 在执行密码登录前先进行安全检查
-    /// 
-    /// # 参数
-    /// * `db` - 数据库连接
-    /// * `input` - 登录输入信息
-    /// * `context` - 登录上下文信息
-    /// 
-    /// # 返回
-    /// * `Result<AuthOutput, AuthError>` - 认证输出或错误
+    /** 带安全检查的密码登录
+     * 
+     * 在执行密码登录前先进行安全检查
+     * 
+     * 参数
+     * --------
+     * * `db` - 数据库连接
+     * * `input` - 登录输入信息
+     * * `context` - 登录上下文信息
+     * 
+     * 返回
+     * --------
+     * * `Result<AuthOutput, AuthError>` - 认证输出或错误
+     */
     #[allow(dead_code)]
     async fn pwd_login_with_security(
         &self,
@@ -272,26 +304,30 @@ impl SysAuthService {
         self.pwd_login(db, input, context).await
     }
 
-    /// 验证用户基本信息
-    /// 
-    /// 验证用户的登录凭证，包括：
-    /// - 用户名和密码验证
-    /// - 用户状态检查
-    /// - 域信息验证
-    /// 
-    /// # 参数
-    /// * `db` - 数据库连接
-    /// * `identifier` - 用户标识（用户名）
-    /// * `password` - 密码
-    /// * `domain` - 域代码
-    /// 
-    /// # 返回
-    /// * `Result<UserWithDomainAndOrgOutput, AuthError>` - 用户信息或错误
-    /// 
-    /// # 错误
-    /// * `InvalidCredentials` - 用户名或密码错误
-    /// * `UserDisabled` - 用户已禁用
-    /// * `DomainNotFound` - 域不存在
+    /** 验证用户基本信息
+     * 
+     * 验证用户的登录凭证，包括：
+     * - 用户名和密码验证
+     * - 用户状态检查
+     * - 域信息验证
+     * 
+     * 参数
+     * --------
+     * * `db` - 数据库连接
+     * * `identifier` - 用户标识（用户名）
+     * * `password` - 密码
+     * * `domain` - 域代码
+     * 
+     * 返回
+     * --------
+     * * `Result<UserWithDomainAndOrgOutput, AuthError>` - 用户信息或错误
+     * 
+     * 错误
+     * --------
+     * * `InvalidCredentials` - 用户名或密码错误
+     * * `UserDisabled` - 用户已禁用
+     * * `DomainNotFound` - 域不存在
+     */
     #[instrument(skip(self, db, password), fields(identifier = %identifier, domain = %domain))]
     async fn verify_user_basic(
         &self,
@@ -322,16 +358,19 @@ impl SysAuthService {
         Ok(user)
     }
 
-    /// 获取用户角色列表
-    /// 
-    /// 查询用户关联的所有角色代码
-    /// 
-    /// # 参数
-    /// * `user_id` - 用户ID
-    /// * `db` - 数据库连接
-    /// 
-    /// # 返回
-    /// * `Result<Vec<String>, AuthError>` - 角色代码列表或错误
+    /** 获取用户角色列表
+     * 
+     * 查询用户关联的所有角色代码
+     * 
+     * 参数
+     * --------
+     * * `user_id` - 用户ID
+     * * `db` - 数据库连接
+     * 
+     * 返回
+     * --------
+     * * `Result<Vec<String>, AuthError>` - 角色代码列表或错误
+     */
     #[instrument(skip(self, db), fields(user_id = %user_id))]
     async fn get_user_roles(
         &self,
@@ -350,20 +389,23 @@ impl SysAuthService {
             .map_err(|e| AuthError::DatabaseOperationFailed(e.to_string()))
     }
 
-    /// 获取用户路由信息
-    /// 
-    /// 根据用户角色获取可访问的路由信息，包括：
-    /// - 菜单路由
-    /// - 路由元数据
-    /// - 权限信息
-    /// 
-    /// # 参数
-    /// * `db` - 数据库连接
-    /// * `role_codes` - 角色代码列表
-    /// * `domain` - 域代码
-    /// 
-    /// # 返回
-    /// * `Result<UserRoute, AuthError>` - 用户路由信息或错误
+    /** 获取用户路由信息
+     * 
+     * 根据用户角色获取可访问的路由信息，包括：
+     * - 菜单路由
+     * - 路由元数据
+     * - 权限信息
+     * 
+     * 参数
+     * --------
+     * * `db` - 数据库连接
+     * * `role_codes` - 角色代码列表
+     * * `domain` - 域代码
+     * 
+     * 返回
+     * --------
+     * * `Result<UserRoute, AuthError>` - 用户路由信息或错误
+     */
     #[instrument(skip(self, db, role_codes), fields(domain = %domain))]
     async fn get_user_routes(
         &self,
@@ -621,16 +663,19 @@ impl TAuthService for SysAuthService {
     }
 }
 
-/// 发送认证事件
-/// 
-/// 将认证事件发送到事件通道，用于异步处理
-/// 
-/// # 参数
-/// * `sender` - 事件发送器
-/// * `auth_event` - 认证事件
-/// 
-/// # 返回
-/// * `Result<(), AuthError>` - 发送结果
+/** 发送认证事件
+ * 
+ * 将认证事件发送到事件通道，用于异步处理
+ * 
+ * 参数
+ * --------
+ * * `sender` - 事件发送器
+ * * `auth_event` - 认证事件
+ * 
+ * 返回
+ * --------
+ * * `Result<(), AuthError>` - 发送结果
+ */
 #[instrument(skip(sender, auth_event))]
 async fn send_auth_event(
     sender: mpsc::UnboundedSender<Box<dyn std::any::Any + Send>>,
@@ -642,24 +687,27 @@ async fn send_auth_event(
     Ok(())
 }
 
-/// 生成认证输出
-/// 
-/// 根据用户信息和角色生成认证输出，包括：
-/// - 访问令牌
-/// - 刷新令牌
-/// - 用户信息
-/// - 角色信息
-/// 
-/// # 参数
-/// * `user_id` - 用户ID
-/// * `username` - 用户名
-/// * `role_codes` - 角色代码列表
-/// * `domain_code` - 域代码
-/// * `organization_name` - 组织名称（可选）
-/// * `audience` - 认证受众
-/// 
-/// # 返回
-/// * `Result<AuthOutput, AuthError>` - 认证输出或错误
+/** 生成认证输出
+ * 
+ * 根据用户信息和角色生成认证输出，包括：
+ * - 访问令牌
+ * - 刷新令牌
+ * - 用户信息
+ * - 角色信息
+ * 
+ * 参数
+ * --------
+ * * `user_id` - 用户ID
+ * * `username` - 用户名
+ * * `role_codes` - 角色代码列表
+ * * `domain_code` - 域代码
+ * * `organization_name` - 组织名称（可选）
+ * * `audience` - 认证受众
+ * 
+ * 返回
+ * --------
+ * * `Result<AuthOutput, AuthError>` - 认证输出或错误
+ */
 #[instrument(skip(role_codes))]
 pub async fn generate_auth_output(
     user_id: String,
@@ -692,14 +740,16 @@ pub async fn generate_auth_output(
     })
 }
 
-/// 登录事件监听器
-/// 
-/// 监听并处理登录相关事件，包括：
-/// - 登录日志记录
-/// - 访问令牌管理
-/// 
-/// # 参数
-/// * `rx` - 事件接收器
+/** 登录事件监听器
+ * 
+ * 监听并处理登录相关事件，包括：
+ * - 登录日志记录
+ * - 访问令牌管理
+ * 
+ * 参数
+ * --------
+ * * `rx` - 事件接收器
+ */
 pub async fn auth_login_listener(
     mut rx: tokio::sync::mpsc::UnboundedReceiver<Box<dyn Any + Send>>,
 ) {
@@ -712,17 +762,20 @@ pub async fn auth_login_listener(
     }
 }
 
-/// 处理认证事件
-/// 
-/// 处理具体的认证事件，包括：
-/// - 登录日志记录
-/// - 访问令牌管理
-/// 
-/// # 参数
-/// * `auth_event` - 认证事件
-/// 
-/// # 返回
-/// * `Result<(), AuthError>` - 处理结果
+/** 处理认证事件
+ * 
+ * 处理具体的认证事件，包括：
+ * - 登录日志记录
+ * - 访问令牌管理
+ * 
+ * 参数
+ * --------
+ * * `auth_event` - 认证事件
+ * 
+ * 返回
+ * --------
+ * * `Result<(), AuthError>` - 处理结果
+ */
 #[instrument(skip(auth_event))]
 async fn handle_auth_event(auth_event: &AuthEvent) -> Result<(), AuthError> {
     AuthEventHandler::handle_login(AuthEvent {
@@ -742,14 +795,16 @@ async fn handle_auth_event(auth_event: &AuthEvent) -> Result<(), AuthError> {
     .map_err(|e| AuthError::LoginHandlerError(format!("{:?}", e)))
 }
 
-/// JWT创建事件监听器
-/// 
-/// 监听并处理JWT创建事件，用于：
-/// - 令牌创建记录
-/// - 令牌状态管理
-/// 
-/// # 参数
-/// * `rx` - 事件接收器
+/** JWT创建事件监听器
+ * 
+ * 监听并处理JWT创建事件，用于：
+ * - 令牌创建记录
+ * - 令牌状态管理
+ * 
+ * 参数
+ * --------
+ * * `rx` - 事件接收器
+ */
 pub async fn jwt_created_listener(mut rx: tokio::sync::mpsc::UnboundedReceiver<String>) {
     while let Some(jwt) = rx.recv().await {
         project_info!("JWT created: {}", jwt);

@@ -1,3 +1,17 @@
+/**
+ * 菜单路由模块
+ * 
+ * 该模块提供了菜单管理相关的路由功能，包括：
+ * - 获取常量路由
+ * - 获取菜单树
+ * - 获取菜单列表
+ * - 创建菜单
+ * - 获取菜单详情
+ * - 更新菜单
+ * - 删除菜单
+ * - 获取角色菜单
+ */
+
 use axum::{
     http::Method,
     routing::{delete, get, post, put},
@@ -11,11 +25,23 @@ use super::route_constants::{
     ROUTE_AUTH_ROUTE, ROUTE_CONSTANT_ROUTES, build_route_path,
 };
 
+/**
+ * 菜单路由结构体
+ * 
+ * 用于管理和注册菜单相关的路由。
+ */
 #[derive(Debug)]
 pub struct SysMenuRouter;
 
 impl SysMenuRouter {
-    /// 初始化公开路由（无需认证）
+    /**
+     * 初始化公开路由（无需认证）
+     * 
+     * 注册并返回无需认证即可访问的菜单路由。
+     * 
+     * # 返回
+     * * `Router` - 配置好的路由实例
+     */
     pub async fn init_menu_router() -> Router {
         let router = Router::new().route(
             ROUTE_CONSTANT_ROUTES,
@@ -24,7 +50,14 @@ impl SysMenuRouter {
         Router::new().nest(&build_route_path(MENU_PATH, ""), router)
     }
 
-    /// 初始化需要认证的路由
+    /**
+     * 初始化需要认证的路由
+     * 
+     * 注册并返回需要用户认证才能访问的菜单路由。
+     * 
+     * # 返回
+     * * `Router` - 配置好的路由实例
+     */
     pub async fn init_protected_menu_router() -> Router {
         // 注册路由信息到全局路由表
         Self::register_menu_routes().await;
@@ -42,7 +75,11 @@ impl SysMenuRouter {
         Router::new().nest(&build_route_path(MENU_PATH, ""), router)
     }
 
-    /// 注册菜单相关的路由信息
+    /**
+     * 注册菜单相关的路由信息
+     * 
+     * 将菜单相关的路由信息注册到全局路由表中。
+     */
     async fn register_menu_routes() {
         let routes = [
             (ROUTE_TREE, Method::GET, "获取菜单树"),

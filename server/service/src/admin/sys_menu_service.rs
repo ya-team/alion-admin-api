@@ -1,57 +1,59 @@
-//! 系统菜单服务模块
-//! 
-//! 该模块提供了菜单管理相关的核心功能，包括：
-//! - 菜单树构建
-//! - 菜单CRUD操作
-//! - 菜单路由管理
-//! - 角色菜单关联
-//! 
-//! # 主要组件
-//! 
-//! ## 核心接口
-//! * `TMenuService`: 菜单服务 trait，定义了菜单管理相关的核心接口
-//! * `SysMenuService`: 菜单服务实现，提供了具体的菜单管理逻辑
-//! 
-//! ## 功能特性
-//! * 菜单树：支持构建菜单树结构
-//! * 菜单查询：支持获取菜单列表和常量路由
-//! * 菜单创建：支持创建新菜单，包括路由名称唯一性检查
-//! * 菜单更新：支持更新菜单信息，包括父菜单和循环引用检查
-//! * 菜单删除：支持删除菜单
-//! * 角色菜单：支持获取角色关联的菜单ID
-//! 
-//! # 使用示例
-//! 
-//! use server_service::admin::sys_menu_service::*;
-//! 
-//! // 创建菜单服务实例
-//! let menu_service = SysMenuService;
-//! 
-//! // 获取菜单树
-//! let menu_tree = menu_service.tree_menu().await?;
-//! 
-//! // 创建新菜单
-//! let menu = menu_service.create_menu(CreateMenuInput {
-//!     menu_type: MenuType::Menu,
-//!     menu_name: "用户管理".to_string(),
-//!     icon_type: "icon".to_string(),
-//!     icon: "user".to_string(),
-//!     route_name: "user".to_string(),
-//!     route_path: "/user".to_string(),
-//!     component: "user/index".to_string(),
-//!     path_param: None,
-//!     status: Status::Enabled,
-//!     active_menu: None,
-//!     hide_in_menu: false,
-//!     pid: "0".to_string(),
-//!     sequence: 1,
-//!     i18n_key: "menu.user".to_string(),
-//!     keep_alive: true,
-//!     constant: false,
-//!     href: None,
-//!     multi_tab: false,
-//! }).await?;
-//! 
+/**
+ * 系统菜单服务模块
+ *
+ * 该模块提供了菜单管理相关的核心功能，包括：
+ * - 菜单树构建
+ * - 菜单CRUD操作
+ * - 菜单路由管理
+ * - 角色菜单关联
+ *
+ * 主要组件
+ * --------
+ * - TMenuService: 菜单服务 trait，定义了菜单管理相关的核心接口
+ * - SysMenuService: 菜单服务实现，提供了具体的菜单管理逻辑
+ *
+ * 功能特性
+ * --------
+ * - 菜单树：支持构建菜单树结构
+ * - 菜单查询：支持获取菜单列表和常量路由
+ * - 菜单创建：支持创建新菜单，包括路由名称唯一性检查
+ * - 菜单更新：支持更新菜单信息，包括父菜单和循环引用检查
+ * - 菜单删除：支持删除菜单
+ * - 角色菜单：支持获取角色关联的菜单ID
+ *
+ * 使用示例
+ * --------
+ *
+ * use server_service::admin::sys_menu_service::*;
+ *
+ * // 创建菜单服务实例
+ * let menu_service = SysMenuService;
+ *
+ * // 获取菜单树
+ * let menu_tree = menu_service.tree_menu().await?;
+ *
+ * // 创建新菜单
+ * let menu = menu_service.create_menu(CreateMenuInput {
+ *     menu_type: MenuType::Menu,
+ *     menu_name: "用户管理".to_string(),
+ *     icon_type: "icon".to_string(),
+ *     icon: "user".to_string(),
+ *     route_name: "user".to_string(),
+ *     route_path: "/user".to_string(),
+ *     component: "user/index".to_string(),
+ *     path_param: None,
+ *     status: Status::Enabled,
+ *     active_menu: None,
+ *     hide_in_menu: false,
+ *     pid: "0".to_string(),
+ *     sequence: 1,
+ *     i18n_key: "menu.user".to_string(),
+ *     keep_alive: true,
+ *     constant: false,
+ *     href: None,
+ *     multi_tab: false,
+ * }).await?;
+ */
 
 use async_trait::async_trait;
 use chrono::Local;
@@ -76,163 +78,164 @@ use crate::{
     helper::db_helper,
 };
 
-/// 菜单服务 trait
-/// 
-/// 定义了菜单管理相关的核心接口，包括：
-/// - 菜单树构建
-/// - 菜单列表获取
-/// - 常量路由获取
-/// - 菜单CRUD操作
-/// - 角色菜单关联
-/// 
-/// # 使用示例
-/// 
-/// use server_service::admin::sys_menu_service::*;
-/// 
-/// let menu_service = SysMenuService;
-/// 
-/// // 获取菜单树
-/// let menu_tree = menu_service.tree_menu().await?;
-/// 
-/// // 获取菜单列表
-/// let menu_list = menu_service.get_menu_list().await?;
-/// 
+/**
+ * 菜单服务 trait
+ *
+ * 定义了菜单管理相关的核心接口，包括：
+ * - 菜单树构建
+ * - 菜单列表获取
+ * - 常量路由获取
+ * - 菜单CRUD操作
+ * - 角色菜单关联
+ *
+ * 使用示例
+ * --------
+ *
+ * use server_service::admin::sys_menu_service::*;
+ *
+ * let menu_service = SysMenuService;
+ *
+ * // 获取菜单树
+ * let menu_tree = menu_service.tree_menu().await?;
+ *
+ * // 获取菜单列表
+ * let menu_list = menu_service.get_menu_list().await?;
+ */
 #[async_trait]
 pub trait TMenuService {
-    /// 获取菜单树
-    /// 
-    /// 获取启用状态的菜单树结构
-    /// 
-    /// # 返回
-    /// * `Result<Vec<MenuTree>, MenuError>` - 菜单树或错误
+    /**
+     * 获取菜单树
+     *
+     * 获取启用状态的菜单树结构
+     *
+     * @return Result<Vec<MenuTree>, MenuError> 菜单树或错误
+     */
     async fn tree_menu(&self) -> Result<Vec<MenuTree>, MenuError>;
 
-    /// 获取菜单列表
-    /// 
-    /// 获取所有菜单的树形结构
-    /// 
-    /// # 返回
-    /// * `Result<Vec<MenuTree>, MenuError>` - 菜单树或错误
+    /**
+     * 获取菜单列表
+     *
+     * 获取所有菜单的树形结构
+     *
+     * @return Result<Vec<MenuTree>, MenuError> 菜单树或错误
+     */
     async fn get_menu_list(&self) -> Result<Vec<MenuTree>, MenuError>;
 
-    /// 获取常量路由
-    /// 
-    /// 获取所有启用状态的常量路由
-    /// 
-    /// # 返回
-    /// * `Result<Vec<MenuRoute>, MenuError>` - 常量路由列表或错误
+    /**
+     * 获取常量路由
+     *
+     * 获取所有启用状态的常量路由
+     *
+     * @return Result<Vec<MenuRoute>, MenuError> 常量路由列表或错误
+     */
     async fn get_constant_routes(&self) -> Result<Vec<MenuRoute>, MenuError>;
 
-    /// 创建菜单
-    /// 
-    /// 创建新菜单，包括路由名称唯一性检查
-    /// 
-    /// # 参数
-    /// * `input` - 菜单创建参数
-    /// 
-    /// # 返回
-    /// * `Result<SysMenuModel, MenuError>` - 创建的菜单信息或错误
+    /**
+     * 创建菜单
+     *
+     * 创建新菜单，包括路由名称唯一性检查
+     *
+     * @param input 菜单创建参数
+     * @return Result<SysMenuModel, MenuError> 创建的菜单信息或错误
+     */
     async fn create_menu(&self, input: CreateMenuInput) -> Result<SysMenuModel, MenuError>;
 
-    /// 获取菜单
-    /// 
-    /// 根据菜单ID获取菜单信息
-    /// 
-    /// # 参数
-    /// * `id` - 菜单ID
-    /// 
-    /// # 返回
-    /// * `Result<SysMenuModel, MenuError>` - 菜单信息或错误
+    /**
+     * 获取菜单
+     *
+     * 根据菜单ID获取菜单信息
+     *
+     * @param id 菜单ID
+     * @return Result<SysMenuModel, MenuError> 菜单信息或错误
+     */
     async fn get_menu(&self, id: i32) -> Result<SysMenuModel, MenuError>;
 
-    /// 更新菜单
-    /// 
-    /// 更新菜单信息，包括父菜单和循环引用检查
-    /// 
-    /// # 参数
-    /// * `id` - 菜单ID
-    /// * `input` - 菜单更新参数
-    /// 
-    /// # 返回
-    /// * `Result<SysMenuModel, MenuError>` - 更新后的菜单信息或错误
+    /**
+     * 更新菜单
+     *
+     * 更新菜单信息，包括父菜单和循环引用检查
+     *
+     * @param id 菜单ID
+     * @param input 菜单更新参数
+     * @return Result<SysMenuModel, MenuError> 更新后的菜单信息或错误
+     */
     async fn update_menu(&self, id: i32, input: UpdateMenuInput) -> Result<SysMenuModel, MenuError>;
 
-    /// 删除菜单
-    /// 
-    /// 根据菜单ID删除菜单
-    /// 
-    /// # 参数
-    /// * `id` - 菜单ID
-    /// 
-    /// # 返回
-    /// * `Result<(), MenuError>` - 删除结果
+    /**
+     * 删除菜单
+     *
+     * 根据菜单ID删除菜单
+     *
+     * @param id 菜单ID
+     * @return Result<(), MenuError> 删除结果
+     */
     async fn delete_menu(&self, id: i32) -> Result<(), MenuError>;
 
-    /// 获取角色菜单ID列表
-    /// 
-    /// 获取指定角色关联的所有菜单ID
-    /// 
-    /// # 参数
-    /// * `role_id` - 角色ID
-    /// * `domain` - 域代码
-    /// 
-    /// # 返回
-    /// * `Result<Vec<i32>, MenuError>` - 菜单ID列表或错误
+    /**
+     * 获取角色菜单ID列表
+     *
+     * 获取指定角色关联的所有菜单ID
+     *
+     * @param role_id 角色ID
+     * @param domain 域代码
+     * @return Result<Vec<i32>, MenuError> 菜单ID列表或错误
+     */
     async fn get_menu_ids_by_role_id(&self, role_id: String, domain: String) -> Result<Vec<i32>, MenuError>;
 }
 
-/// 系统菜单服务
-/// 
-/// 实现了菜单管理相关的核心功能，包括：
-/// - 菜单树构建
-/// - 菜单CRUD操作
-/// - 菜单路由管理
-/// - 角色菜单关联
-/// 
-/// # 使用示例
-/// 
-/// use server_service::admin::sys_menu_service::*;
-/// 
-/// let menu_service = SysMenuService;
-/// 
-/// // 获取菜单树
-/// let menu_tree = menu_service.tree_menu().await?;
-/// 
-/// // 创建菜单
-/// let menu = menu_service.create_menu(CreateMenuInput {
-///     menu_type: MenuType::Menu,
-///     menu_name: "用户管理".to_string(),
-///     icon_type: "icon".to_string(),
-///     icon: "user".to_string(),
-///     route_name: "user".to_string(),
-///     route_path: "/user".to_string(),
-///     component: "user/index".to_string(),
-///     path_param: None,
-///     status: Status::Enabled,
-///     active_menu: None,
-///     hide_in_menu: false,
-///     pid: "0".to_string(),
-///     sequence: 1,
-///     i18n_key: "menu.user".to_string(),
-///     keep_alive: true,
-///     constant: false,
-///     href: None,
-///     multi_tab: false,
-/// }).await?;
-/// 
+/**
+ * 系统菜单服务
+ *
+ * 实现了菜单管理相关的核心功能，包括：
+ * - 菜单树构建
+ * - 菜单CRUD操作
+ * - 菜单路由管理
+ * - 角色菜单关联
+ *
+ * 使用示例
+ * --------
+ *
+ * use server_service::admin::sys_menu_service::*;
+ *
+ * let menu_service = SysMenuService;
+ *
+ * // 获取菜单树
+ * let menu_tree = menu_service.tree_menu().await?;
+ *
+ * // 创建菜单
+ * let menu = menu_service.create_menu(CreateMenuInput {
+ *     menu_type: MenuType::Menu,
+ *     menu_name: "用户管理".to_string(),
+ *     icon_type: "icon".to_string(),
+ *     icon: "user".to_string(),
+ *     route_name: "user".to_string(),
+ *     route_path: "/user".to_string(),
+ *     component: "user/index".to_string(),
+ *     path_param: None,
+ *     status: Status::Enabled,
+ *     active_menu: None,
+ *     hide_in_menu: false,
+ *     pid: "0".to_string(),
+ *     sequence: 1,
+ *     i18n_key: "menu.user".to_string(),
+ *     keep_alive: true,
+ *     constant: false,
+ *     href: None,
+ *     multi_tab: false,
+ * }).await?;
+ */
 #[derive(Clone)]
 pub struct SysMenuService;
 
 impl SysMenuService {
-    /// 构建菜单树节点
-    /// 
-    /// 将菜单模型转换为菜单树节点
-    /// 
-    /// # 参数
-    /// * `menu` - 菜单模型
-    /// 
-    /// # 返回
-    /// * `MenuTree` - 菜单树节点
+    /**
+     * 构建菜单树节点
+     *
+     * 将菜单模型转换为菜单树节点
+     *
+     * @param menu 菜单模型
+     * @return MenuTree 菜单树节点
+     */
     fn build_menu_tree(menu: &SysMenuModel) -> MenuTree {
         MenuTree {
             id: menu.id,
@@ -262,15 +265,14 @@ impl SysMenuService {
         }
     }
 
-    /// 构建树形结构
-    /// 
-    /// 将菜单树节点列表构建为树形结构
-    /// 
-    /// # 参数
-    /// * `menu_trees` - 菜单树节点列表
-    /// 
-    /// # 返回
-    /// * `Vec<MenuTree>` - 树形结构的菜单树
+    /**
+     * 构建树形结构
+     *
+     * 将菜单树节点列表构建为树形结构
+     *
+     * @param menu_trees 菜单树节点列表
+     * @return Vec<MenuTree> 树形结构的菜单树
+     */
     fn build_tree_structure(menu_trees: Vec<MenuTree>) -> Vec<MenuTree> {
         TreeBuilder::build(
             menu_trees,
@@ -287,19 +289,19 @@ impl SysMenuService {
         )
     }
 
-    /// 检查路由名称唯一性
-    /// 
-    /// 检查路由名称是否已存在，支持排除当前菜单
-    /// 
-    /// # 参数
-    /// * `route_name` - 路由名称
-    /// * `exclude_id` - 排除的菜单ID（可选）
-    /// 
-    /// # 返回
-    /// * `Result<(), MenuError>` - 检查结果
-    /// 
-    /// # 错误
-    /// * `DuplicateRouteName` - 路由名称已存在
+    /**
+     * 检查路由名称唯一性
+     *
+     * 检查路由名称是否已存在，支持排除当前菜单
+     *
+     * @param route_name 路由名称
+     * @param exclude_id 排除的菜单ID（可选）
+     * @return Result<(), MenuError> 检查结果
+     *
+     * 错误
+     * -----
+     * - DuplicateRouteName: 路由名称已存在
+     */
     async fn check_route_name_unique(&self, route_name: &str, exclude_id: Option<i32>) -> Result<(), MenuError> {
         let db = db_helper::get_db_connection().await?;
         let mut query = SysMenu::find().filter(SysMenuColumn::RouteName.eq(route_name));
@@ -315,19 +317,19 @@ impl SysMenuService {
         Ok(())
     }
 
-    /// 检查父菜单
-    /// 
-    /// 检查父菜单是否存在且为目录类型
-    /// 
-    /// # 参数
-    /// * `pid` - 父菜单ID
-    /// 
-    /// # 返回
-    /// * `Result<(), MenuError>` - 检查结果
-    /// 
-    /// # 错误
-    /// * `ParentMenuNotFound` - 父菜单不存在
-    /// * `ParentNotDirectory` - 父菜单不是目录类型
+    /**
+     * 检查父菜单
+     *
+     * 检查父菜单是否存在且为目录类型
+     *
+     * @param pid 父菜单ID
+     * @return Result<(), MenuError> 检查结果
+     *
+     * 错误
+     * -----
+     * - ParentMenuNotFound: 父菜单不存在
+     * - ParentNotDirectory: 父菜单不是目录类型
+     */
     async fn check_parent_menu(&self, pid: &str) -> Result<(), MenuError> {
         if pid == "0" {
             return Ok(());
@@ -347,19 +349,19 @@ impl SysMenuService {
         }
     }
 
-    /// 检查循环引用
-    /// 
-    /// 检查菜单的父子关系是否存在循环引用
-    /// 
-    /// # 参数
-    /// * `id` - 当前菜单ID
-    /// * `pid` - 父菜单ID
-    /// 
-    /// # 返回
-    /// * `Result<(), MenuError>` - 检查结果
-    /// 
-    /// # 错误
-    /// * `CircularReference` - 存在循环引用
+    /**
+     * 检查循环引用
+     *
+     * 检查菜单的父子关系是否存在循环引用
+     *
+     * @param id 当前菜单ID
+     * @param pid 父菜单ID
+     * @return Result<(), MenuError> 检查结果
+     *
+     * 错误
+     * -----
+     * - CircularReference: 存在循环引用
+     */
     async fn check_circular_reference(&self, id: i32, pid: &str) -> Result<(), MenuError> {
         if pid == "0" {
             return Ok(());
@@ -393,6 +395,13 @@ impl SysMenuService {
 
 #[async_trait]
 impl TMenuService for SysMenuService {
+    /**
+     * 获取菜单树
+     *
+     * 获取启用状态的菜单树结构
+     *
+     * @return Result<Vec<MenuTree>, MenuError> 菜单树或错误
+     */
     async fn tree_menu(&self) -> Result<Vec<MenuTree>, MenuError> {
         let db = db_helper::get_db_connection().await?;
         let menus = SysMenu::find()
@@ -406,6 +415,13 @@ impl TMenuService for SysMenuService {
         Ok(Self::build_tree_structure(menu_trees))
     }
 
+    /**
+     * 获取菜单列表
+     *
+     * 获取所有菜单的树形结构
+     *
+     * @return Result<Vec<MenuTree>, MenuError> 菜单树或错误
+     */
     async fn get_menu_list(&self) -> Result<Vec<MenuTree>, MenuError> {
         let db = db_helper::get_db_connection().await?;
         let menus = SysMenu::find()
@@ -418,6 +434,13 @@ impl TMenuService for SysMenuService {
         Ok(Self::build_tree_structure(menu_trees))
     }
 
+    /**
+     * 获取常量路由
+     *
+     * 获取所有启用状态的常量路由
+     *
+     * @return Result<Vec<MenuRoute>, MenuError> 常量路由列表或错误
+     */
     async fn get_constant_routes(&self) -> Result<Vec<MenuRoute>, MenuError> {
         let db = db_helper::get_db_connection().await?;
         let menus = SysMenu::find()
@@ -455,6 +478,14 @@ impl TMenuService for SysMenuService {
         Ok(routes)
     }
 
+    /**
+     * 创建菜单
+     *
+     * 创建新菜单，包括路由名称唯一性检查
+     *
+     * @param input 菜单创建参数
+     * @return Result<SysMenuModel, MenuError> 创建的菜单信息或错误
+     */
     async fn create_menu(&self, input: CreateMenuInput) -> Result<SysMenuModel, MenuError> {
         // 检查路由名称唯一性
         self.check_route_name_unique(&input.route_name, None).await?;
@@ -497,6 +528,14 @@ impl TMenuService for SysMenuService {
             .map_err(MenuError::from)
     }
 
+    /**
+     * 获取菜单
+     *
+     * 根据菜单ID获取菜单信息
+     *
+     * @param id 菜单ID
+     * @return Result<SysMenuModel, MenuError> 菜单信息或错误
+     */
     async fn get_menu(&self, id: i32) -> Result<SysMenuModel, MenuError> {
         let db = db_helper::get_db_connection().await?;
         SysMenu::find_by_id(id)
@@ -506,6 +545,15 @@ impl TMenuService for SysMenuService {
             .ok_or(MenuError::MenuNotFound)
     }
 
+    /**
+     * 更新菜单
+     *
+     * 更新菜单信息，包括父菜单和循环引用检查
+     *
+     * @param id 菜单ID
+     * @param input 菜单更新参数
+     * @return Result<SysMenuModel, MenuError> 更新后的菜单信息或错误
+     */
     async fn update_menu(&self, id: i32, input: UpdateMenuInput) -> Result<SysMenuModel, MenuError> {
         let menu = self.get_menu(id).await?;
         
@@ -549,6 +597,14 @@ impl TMenuService for SysMenuService {
             .map_err(MenuError::from)
     }
 
+    /**
+     * 删除菜单
+     *
+     * 根据菜单ID删除菜单
+     *
+     * @param id 菜单ID
+     * @return Result<(), MenuError> 删除结果
+     */
     async fn delete_menu(&self, id: i32) -> Result<(), MenuError> {
         let db = db_helper::get_db_connection().await?;
         
@@ -584,6 +640,15 @@ impl TMenuService for SysMenuService {
         Ok(())
     }
 
+    /**
+     * 获取角色菜单ID列表
+     *
+     * 获取指定角色关联的所有菜单ID
+     *
+     * @param role_id 角色ID
+     * @param domain 域代码
+     * @return Result<Vec<i32>, MenuError> 菜单ID列表或错误
+     */
     async fn get_menu_ids_by_role_id(&self, role_id: String, domain: String) -> Result<Vec<i32>, MenuError> {
         let db = db_helper::get_db_connection().await?;
         SysRoleMenu::find()

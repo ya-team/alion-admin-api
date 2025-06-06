@@ -1,18 +1,30 @@
-/// Enum to represent different platforms or audiences for JWT authentication.
+/**
+ * Enum to represent different platforms or audiences for JWT authentication.
+ */
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Audience {
-    /// Audience for the official website.
+    /**
+     * Audience for the official website.
+     */
     OfficialWebsite,
-    /// Audience for the admin control panel.
+    /**
+     * Audience for the admin control panel.
+     */
     ManagementPlatform,
-    /// Audience for the mobile application.
+    /**
+     * Audience for the mobile application.
+     */
     MobileApp,
-    /// Audience for mini-programs or widgets.
+    /**
+     * Audience for mini-programs or widgets.
+     */
     MiniProgram,
 }
 
 impl Audience {
-    /// Returns the audience string associated with each platform.
+    /**
+     * Returns the audience string associated with each platform.
+     */
     pub fn as_str(self) -> &'static str {
         match self {
             Audience::OfficialWebsite => "official_website",

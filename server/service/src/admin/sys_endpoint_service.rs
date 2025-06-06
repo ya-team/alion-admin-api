@@ -6,7 +6,10 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DeleteResult, EntityTrait, IntoActiveModel,
     PaginatorTrait, QueryFilter, Set,
 };
-use server_core::web::{error::AppError, page::PaginatedData};
+use server_core::{
+    web::{error::AppError, page::PaginatedData},
+    paginated_data,
+};
 use server_model::admin::entities::{
     prelude::{SysEndpoint, SysRoleMenu},
     sys_endpoint::{ActiveModel as SysEndpointActiveModel, Column as SysEndpointColumn, Model as SysEndpointModel},
@@ -18,6 +21,44 @@ use tracing::{error, info};
 
 use crate::helper::{db_helper, transaction_helper::execute_in_transaction};
 use crate::admin::errors::sys_endpoint_error::EndpointError;
+
+/**
+ * 系统端点服务模块
+ *
+ * 该模块提供了端点（API接口）管理相关的核心功能，包括：
+ * - 端点CRUD操作
+ * - 端点分页查询
+ * - 端点树结构生成
+ * - 端点分配到角色
+ *
+ * 主要组件
+ * --------
+ * - TEndpointService: 端点服务 trait，定义了端点管理相关的核心接口
+ * - SysEndpointService: 端点服务实现，提供了具体的端点管理逻辑
+ *
+ * 功能特性
+ * --------
+ * - 端点同步：批量同步接口定义
+ * - 端点查询：支持分页查询和关键字搜索
+ * - 端点树：按 controller 组织的树结构
+ * - 端点分配：支持为角色分配端点权限
+ *
+ * 使用示例
+ * --------
+ *
+ * use server_service::admin::sys_endpoint_service::*;
+ *
+ * let endpoint_service = SysEndpointService::new(db.clone());
+ *
+ * // 分页查询端点
+ * let endpoints = endpoint_service.find_paginated_endpoints(EndpointPageRequest {
+ *     keywords: Some("user".to_string()),
+ *     page_details: PageDetails { current: 1, size: 10 },
+ * }).await?;
+ *
+ * // 获取端点树
+ * let tree = endpoint_service.tree_endpoint().await?;
+ */
 
 #[async_trait]
 pub trait TEndpointService {
@@ -334,12 +375,12 @@ impl TEndpointService for SysEndpointService {
             .await
             .map_err(AppError::from)?;
 
-        Ok(PaginatedData {
-            current: params.page_details.current,
-            size: params.page_details.size,
+        Ok(paginated_data!(
             total,
-            records,
-        })
+            params.page_details.current,
+            params.page_details.size,
+            records
+        ))
     }
 
     async fn tree_endpoint(&self) -> Result<Vec<EndpointTree>, AppError> {

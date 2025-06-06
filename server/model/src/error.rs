@@ -1,3 +1,13 @@
+/**
+ * 应用程序错误类型定义
+ * 
+ * 本模块定义了应用程序中使用的所有错误类型，包括：
+ * - 业务错误（400-499）：如参数验证、未授权、资源不存在等
+ * - 系统错误（500-599）：如数据库错误、内部服务器错误等
+ * - 网络错误：如网络连接问题、请求超时等
+ * - 其他错误：未知错误类型
+ */
+
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -7,42 +17,62 @@ use serde_json::json;
 use thiserror::Error;
 use tracing::{error, warn};
 
+/**
+ * 应用程序错误枚举
+ * 
+ * 定义了应用程序中可能出现的所有错误类型，每个错误类型都包含：
+ * - 错误消息
+ * - HTTP状态码
+ * - 错误代码
+ * - 日志级别
+ */
 #[derive(Error, Debug)]
 pub enum AppError {
     // 业务错误 (400-499)
+    /** 业务逻辑错误 */
     #[error("业务错误: {0}")]
     Business(String),
     
+    /** 参数验证错误 */
     #[error("参数验证错误: {0}")]
     Validation(String),
     
+    /** 未授权访问错误 */
     #[error("未授权访问: {0}")]
     Unauthorized(String),
     
+    /** 资源不存在错误 */
     #[error("资源不存在: {0}")]
     NotFound(String),
     
+    /** 资源冲突错误 */
     #[error("资源已存在: {0}")]
     Conflict(String),
     
     // 系统错误 (500-599)
+    /** 数据库操作错误 */
     #[error("数据库错误: {0}")]
     Database(#[from] sea_orm::DbErr),
     
+    /** 内部服务器错误 */
     #[error("内部服务器错误: {0}")]
     Internal(String),
     
+    /** 外部服务调用错误 */
     #[error("外部服务错误: {0}")]
     External(String),
     
     // 网络错误
+    /** 网络连接错误 */
     #[error("网络错误: {0}")]
     Network(String),
     
+    /** 请求超时错误 */
     #[error("请求超时: {0}")]
     Timeout(String),
     
     // 其他错误
+    /** 未知错误类型 */
     #[error("未知错误: {0}")]
     Unknown(String),
 }

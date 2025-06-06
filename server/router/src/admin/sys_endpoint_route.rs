@@ -1,3 +1,12 @@
+/**
+ * 接口路由模块
+ * 
+ * 该模块提供了接口管理相关的路由功能，包括：
+ * - 获取接口列表
+ * - 获取角色API权限
+ * - 获取接口树
+ */
+
 use axum::{http::Method, routing::get, Router};
 use server_api::admin::SysEndpointApi;
 use server_global::global::{add_route, RouteInfo};
@@ -5,13 +14,26 @@ use super::route_constants::{
     ENDPOINT_PATH, SERVICE_NAME_ENDPOINT, ROUTE_ROOT, ROUTE_TREE, build_route_path,
 };
 
-// 路由路径常量
+/** 角色API权限路由路径 */
 const ROUTE_AUTH_ENDPOINT: &str = "/auth-endpoint/{roleCode}";
 
+/**
+ * 接口路由结构体
+ * 
+ * 用于管理和注册接口相关的路由。
+ */
 #[derive(Debug)]
 pub struct SysEndpointRouter;
 
 impl SysEndpointRouter {
+    /**
+     * 初始化接口路由
+     * 
+     * 注册并返回接口相关的所有路由。
+     * 
+     * # 返回
+     * * `Router` - 配置好的路由实例
+     */
     pub async fn init_endpoint_router() -> Router {
         // 注册路由信息到全局路由表
         Self::register_endpoint_routes().await;
@@ -25,7 +47,11 @@ impl SysEndpointRouter {
         Router::new().nest(&build_route_path(ENDPOINT_PATH, ""), router)
     }
 
-    /// 注册接口相关的路由信息
+    /**
+     * 注册接口相关的路由信息
+     * 
+     * 将接口相关的路由信息注册到全局路由表中。
+     */
     async fn register_endpoint_routes() {
         let routes = [
             (ROUTE_ROOT, Method::GET, "获取接口列表"),

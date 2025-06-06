@@ -1,6 +1,17 @@
+/**
+ * 路由初始化模块
+ * 
+ * 本模块负责初始化和管理HTTP路由，包括：
+ * - 初始化管理后台路由
+ * - 配置路由中间件
+ * - 管理路由权限
+ * - 处理API密钥验证
+ */
+
 use std::sync::Arc;
 use std::error::Error;
 use tokio::sync::mpsc;
+use std::time::Duration;
 
 use axum::{body::Body, http::StatusCode, response::IntoResponse, Extension, Router};
 use axum_casbin::CasbinAxumLayer;
@@ -34,12 +45,34 @@ use tracing::info_span;
 
 use crate::{initialize_casbin, project_error, project_info, db_initialization};
 
+/**
+ * 服务类型枚举
+ * 
+ * 用于表示路由服务类型：
+ * - None: 无服务
+ * - Single: 单个服务实例
+ */
 #[derive(Clone)]
 pub enum Services<T: Send + Sync + 'static> {
     None(std::marker::PhantomData<T>),
     Single(Arc<T>),
 }
 
+/**
+ * 应用路由中间件
+ * 
+ * # 参数
+ * - router: 原始路由
+ * - services: 服务实例
+ * - need_casbin: 是否需要Casbin权限控制
+ * - need_auth: 是否需要JWT认证
+ * - api_validation: API密钥验证配置
+ * - casbin: Casbin层配置
+ * - audience: 认证受众
+ * 
+ * # 返回
+ * 返回配置了所有必要中间件的路由
+ */
 async fn apply_layers<T: Send + Sync + 'static>(
     router: Router,
     services: Services<T>,
@@ -93,6 +126,15 @@ async fn apply_layers<T: Send + Sync + 'static>(
     router
 }
 
+/**
+ * 初始化管理后台路由
+ * 
+ * 配置并初始化所有管理后台相关的路由，
+ * 包括认证、授权、用户管理等功能。
+ * 
+ * # 返回
+ * 返回配置完整的路由实例
+ */
 pub async fn initialize_admin_router() -> Router {
     clear_routes().await;
     project_info!("Initializing admin router");
@@ -112,11 +154,15 @@ pub async fn initialize_admin_router() -> Router {
 
     // 初始化验证器
     // 根据是否配置了 Redis 来选择 nonce 存储实现
+    let redis_client = redis::Client::open("redis://127.0.0.1/").unwrap();
     let nonce_store_factory =
         if let Some(_) = crate::redis_initialization::get_primary_redis().await {
             // 如果 Redis 可用，使用 Redis 作为 nonce 存储
             project_info!("Using Redis for nonce storage");
-            server_core::sign::create_redis_nonce_store_factory("api_key")
+            server_core::sign::create_redis_nonce_store_factory(
+                redis_client,
+                Duration::from_secs(300) // 5 minutes nonce expiration
+            )
         } else {
             // 否则使用内存存储
             project_info!("Using memory for nonce storage");
@@ -330,10 +376,26 @@ pub async fn initialize_admin_router() -> Router {
     app
 }
 
+/**
+ * 404处理器
+ * 
+ * 处理未找到的路由请求
+ * 
+ * # 返回
+ * 返回404状态码和提示信息
+ */
 async fn handler_404() -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "nothing to see here")
 }
 
+/**
+ * 处理收集的路由
+ * 
+ * 将收集到的路由信息同步到数据库
+ * 
+ * # 参数
+ * - db: 数据库连接
+ */
 async fn process_collected_routes(db: DatabaseConnection) {
     let routes = get_collected_routes().await;
     let endpoints: Vec<SysEndpoint> = routes
@@ -365,6 +427,18 @@ async fn process_collected_routes(db: DatabaseConnection) {
     }
 }
 
+/**
+ * 生成路由ID
+ * 
+ * 根据路径和方法生成唯一的路由ID
+ * 
+ * # 参数
+ * - path: 路由路径
+ * - method: HTTP方法
+ * 
+ * # 返回
+ * 返回生成的唯一ID
+ */
 fn generate_id(path: &str, method: &str) -> String {
     use std::{
         collections::hash_map::DefaultHasher,
@@ -376,6 +450,18 @@ fn generate_id(path: &str, method: &str) -> String {
     format!("{:x}", hasher.finish())
 }
 
+/**
+ * 初始化路由
+ * 
+ * 初始化基本路由配置
+ * 
+ * # 参数
+ * - app_config: 应用配置
+ * 
+ * # 返回
+ * - 成功：返回路由实例
+ * - 失败：返回错误信息
+ */
 #[allow(dead_code)]
 pub async fn init_router(_app_config: &Config) -> Result<Router, Box<dyn Error>> {
     #[allow(unused_variables)]

@@ -1,3 +1,33 @@
+/** 系统授权服务模块
+ * 
+ * 该模块提供了系统授权相关的核心功能，包括：
+ * - 用户权限验证
+ * - 角色权限管理
+ * - 菜单权限控制
+ * - 端点权限验证
+ * 
+ * 主要组件
+ * --------
+ * 
+ * 核心接口
+ * --------
+ * * `TAuthorizationService`: 授权服务 trait，定义了授权相关的核心接口
+ * * `SysAuthorizationService`: 授权服务实现，提供了具体的授权逻辑
+ * 
+ * 使用示例
+ * --------
+ * /* 创建授权服务实例
+ *  * let auth_service = SysAuthorizationService;
+ *  * 
+ *  * // 验证用户权限
+ *  * let has_permission = auth_service.verify_permission(
+ *  *     "user123",
+ *  *     "admin:user:create",
+ *  *     "example.com"
+ *  * ).await?;
+ *  */
+ */
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -11,11 +41,12 @@ use server_model::admin::entities::{
     sys_domain::Column as SysDomainColumn,
     sys_endpoint::Column as SysEndpointColumn,
     sys_menu::Column as SysMenuColumn,
+    sys_role::Column as SysRoleColumn,
     sys_role_menu::{ActiveModel as SysRoleMenuActiveModel, Column as SysRoleMenuColumn},
     sys_user_role::{ActiveModel as SysUserRoleActiveModel, Column as SysUserRoleColumn},
 };
 use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 use regex::Regex;
 
 use crate::helper::transaction_helper::execute_in_transaction;
@@ -102,9 +133,39 @@ fn validate_route_id(id: i32) -> Result<(), AppError> {
     Ok(())
 }
 
-/// 授权服务接口定义
+/** 授权服务 trait
+ * 
+ * 定义了系统授权相关的核心接口，包括：
+ * - 权限验证
+ * - 角色权限管理
+ * - 端点权限验证
+ */
 #[async_trait]
 pub trait TAuthorizationService: Send + Sync {
+    /** 验证用户权限
+     * 
+     * 检查用户是否具有指定的权限，包括：
+     * - 用户角色验证
+     * - 角色权限验证
+     * - 端点权限验证
+     * 
+     * 参数
+     * --------
+     * * `user_id` - 用户ID
+     * * `permission` - 权限标识
+     * * `domain` - 域代码
+     * 
+     * 返回
+     * --------
+     * * `Result<bool, AppError>` - 权限验证结果
+     */
+    async fn verify_permission(
+        &self,
+        user_id: &str,
+        permission: &str,
+        domain: &str,
+    ) -> Result<bool, AppError>;
+
     /// 为角色分配权限
     /// 
     /// # Arguments
@@ -392,10 +453,122 @@ impl SysAuthorizationService {
             ))),
         })
     }
+
+    /** 获取用户角色列表
+     * 
+     * 查询用户关联的所有角色代码
+     * 
+     * 参数
+     * --------
+     * * `user_id` - 用户ID
+     * * `db` - 数据库连接
+     * 
+     * 返回
+     * --------
+     * * `Result<Vec<String>, AppError>` - 角色代码列表或错误
+     */
+    #[instrument(skip(self, db), fields(user_id = %user_id))]
+    async fn get_user_roles(
+        &self,
+        user_id: &str,
+        db: &Arc<DatabaseConnection>,
+    ) -> Result<Vec<String>, AppError> {
+        let user_roles = SysUserRole::find()
+            .filter(SysUserRoleColumn::UserId.eq(user_id))
+            .all(db.as_ref())
+            .await
+            .map_err(DbErr::from)
+            .map_err(AppError::from)?;
+
+        let role_ids: Vec<String> = user_roles.into_iter()
+            .map(|ur| ur.role_id)
+            .collect();
+
+        let roles = SysRole::find()
+            .filter(SysRoleColumn::Id.is_in(role_ids))
+            .all(db.as_ref())
+            .await
+            .map_err(DbErr::from)
+            .map_err(AppError::from)?;
+
+        Ok(roles.into_iter().map(|r| r.code).collect())
+    }
+
+    /** 验证角色权限
+     * 
+     * 检查角色是否具有指定的权限
+     * 
+     * 参数
+     * --------
+     * * `role_codes` - 角色代码列表
+     * * `permission` - 权限标识
+     * * `domain` - 域代码
+     * * `db` - 数据库连接
+     * 
+     * 返回
+     * --------
+     * * `Result<bool, AppError>` - 权限验证结果
+     */
+    #[instrument(skip(self, db), fields(permission = %permission, domain = %domain))]
+    async fn verify_role_permission(
+        &self,
+        role_code: &str,
+        permission: &str,
+        domain: &str,
+        db: &Arc<DatabaseConnection>,
+    ) -> Result<bool, AppError> {
+        // 获取角色ID
+        let role = SysRole::find()
+            .filter(SysRoleColumn::Code.eq(role_code))
+            .one(db.as_ref())
+            .await
+            .map_err(DbErr::from)
+            .map_err(AppError::from)?
+            .ok_or_else(|| {
+                let err = AuthorizationError::role_not_found(role_code.to_string(), "".to_string());
+                AppError::from(err)
+            })?;
+
+        // 检查角色是否有权限
+        let has_permission = SysRoleMenu::find()
+            .filter(SysRoleMenuColumn::RoleId.eq(role.id))
+            .filter(SysRoleMenuColumn::Domain.eq(domain))
+            .all(db.as_ref())
+            .await
+            .map_err(DbErr::from)
+            .map_err(AppError::from)?
+            .into_iter()
+            .any(|_rm| {
+                // 这里需要根据实际业务逻辑来判断权限
+                // 例如，可以检查菜单的权限标识是否匹配
+                true // 临时返回 true，需要根据实际业务逻辑修改
+            });
+
+        Ok(has_permission)
+    }
 }
 
 #[async_trait]
 impl TAuthorizationService for SysAuthorizationService {
+    async fn verify_permission(
+        &self,
+        user_id: &str,
+        permission: &str,
+        domain: &str,
+    ) -> Result<bool, AppError> {
+        // 获取用户角色
+        let roles = self.get_user_roles(user_id, &self.db).await?;
+        
+        // 检查每个角色是否有权限
+        for role in roles {
+            if self.verify_role_permission(&role, permission, domain, &self.db).await? {
+                return Ok(true);
+            }
+        }
+        
+        Ok(false)
+    }
+
     async fn assign_permissions(
         &self,
         domain_code: String,

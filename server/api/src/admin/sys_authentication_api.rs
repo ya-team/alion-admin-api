@@ -1,3 +1,13 @@
+/**
+ * 认证管理API
+ * 
+ * 提供用户认证和授权相关的接口，包括：
+ * - 用户登录
+ * - 获取用户信息
+ * - 获取用户路由
+ * - 角色权限分配
+ * - 角色路由分配
+ */
 use std::{net::SocketAddr, sync::Arc};
 
 use axum::{extract::ConnectInfo, http::HeaderMap, Extension};
@@ -19,6 +29,15 @@ use server_global::global::GLOBAL_DB_POOL;
 pub struct SysAuthenticationApi;
 
 impl SysAuthenticationApi {
+    /**
+     * 获取数据库连接
+     * 
+     * # 返回
+     * 返回默认数据库连接池的Arc引用
+     * 
+     * # 错误
+     * 当默认数据库连接池不存在时返回错误
+     */
     async fn get_db_connection() -> Result<Arc<sea_orm::DatabaseConnection>, AppError> {
         let pools = GLOBAL_DB_POOL.read().await;
         match pools.get("default") {
@@ -30,6 +49,20 @@ impl SysAuthenticationApi {
         }
     }
 
+    /**
+     * 处理用户登录请求
+     * 
+     * # 参数
+     * - addr: 客户端地址信息
+     * - headers: HTTP请求头
+     * - user_agent: 用户代理信息
+     * - request_id: 请求ID
+     * - service: 认证服务实例
+     * - input: 登录输入参数
+     * 
+     * # 返回
+     * 返回认证结果，包含token和用户信息
+     */
     pub async fn login_handler(
         ConnectInfo(addr): ConnectInfo<SocketAddr>,
         headers: HeaderMap,
@@ -68,6 +101,15 @@ impl SysAuthenticationApi {
             .map(Res::new_data)?)
     }
 
+    /**
+     * 获取当前用户信息
+     * 
+     * # 参数
+     * - user: 当前认证用户信息
+     * 
+     * # 返回
+     * 返回用户详细信息
+     */
     pub async fn get_user_info(
         Extension(user): Extension<User>,
     ) -> Result<Res<UserInfoOutput>, AppError> {
@@ -80,6 +122,16 @@ impl SysAuthenticationApi {
         Ok(Res::new_data(user_info))
     }
 
+    /**
+     * 获取用户可访问的路由列表
+     * 
+     * # 参数
+     * - service: 认证服务实例
+     * - user: 当前认证用户信息
+     * 
+     * # 返回
+     * 返回用户可访问的路由列表
+     */
     pub async fn get_user_routes(
         Extension(service): Extension<Arc<SysAuthService>>,
         Extension(user): Extension<User>,
@@ -91,9 +143,17 @@ impl SysAuthenticationApi {
             .map(Res::new_data)?)
     }
 
-    /// 为角色分配权限
-    ///
-    /// 将指定的权限分配给指定域中的角色。
+    /**
+     * 为角色分配权限
+     * 
+     * # 参数
+     * - service: 授权服务实例
+     * - cache_enforcer: Casbin执行器
+     * - input: 权限分配参数
+     * 
+     * # 返回
+     * 返回权限分配操作的结果
+     */
     pub async fn assign_permissions(
         Extension(service): Extension<Arc<SysAuthorizationService>>,
         Extension(mut cache_enforcer): Extension<CasbinAxumLayer>,
@@ -106,9 +166,16 @@ impl SysAuthenticationApi {
             .map(Res::new_data)?)
     }
 
-    /// 为角色分配路由
-    ///
-    /// 将指定的路由分配给指定域中的角色。
+    /**
+     * 为角色分配路由
+     * 
+     * # 参数
+     * - service: 授权服务实例
+     * - input: 路由分配参数
+     * 
+     * # 返回
+     * 返回路由分配操作的结果
+     */
     pub async fn assign_routes(
         Extension(service): Extension<Arc<SysAuthorizationService>>,
         ValidatedForm(input): ValidatedForm<AssignRouteDto>,

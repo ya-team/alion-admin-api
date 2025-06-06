@@ -1,9 +1,19 @@
+/**
+ * 菜单相关输入参数定义
+ * 
+ * 包含菜单分页、创建、更新等输入结构体。
+ */
+
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 use server_core::web::page::PageRequest;
 use crate::admin::entities::sea_orm_active_enums::{Status, MenuType};
 
-// 分页请求
+/**
+ * 菜单分页请求参数
+ * 
+ * 用于分页查询菜单。
+ */
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MenuPageRequest {
     #[serde(flatten)]
@@ -14,7 +24,11 @@ pub struct MenuPageRequest {
     pub status: Option<Status>,
 }
 
-// 菜单输入
+/**
+ * 菜单输入参数
+ * 
+ * 用于创建和更新菜单。
+ */
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct MenuInput {
     #[validate(length(min = 1, max = 50, message = "Menu name must be between 1 and 50 characters"))]
@@ -56,11 +70,17 @@ pub struct MenuInput {
     pub multi_tab: Option<bool>,
 }
 
-// 创建菜单输入
+/**
+ * 创建菜单输入类型别名
+ */
 #[allow(dead_code)]
 pub type CreateMenuInput = MenuInput;
 
-// 更新菜单输入
+/**
+ * 更新菜单输入参数
+ * 
+ * 用于更新菜单。
+ */
 #[derive(Debug, Deserialize, Validate)]
 #[allow(dead_code)]
 pub struct UpdateMenuInput {

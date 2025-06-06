@@ -1,11 +1,23 @@
+/**
+ * 用户相关输出参数定义
+ * 
+ * 包含用户信息、带域和组织信息的用户信息等输出结构体。
+ */
+
 use chrono::NaiveDateTime;
 use sea_orm::FromQueryResult;
 use serde::Serialize;
 
 use crate::admin::entities::{sea_orm_active_enums::Status, sys_user::Model as SysUserModel};
 
+/**
+ * 用户信息输出参数
+ * 
+ * 用于返回用户的基本信息，不包含密码等敏感信息。
+ */
 #[derive(Debug, FromQueryResult, Clone)]
 pub struct UserWithDomainAndOrgOutput {
+    /** 用户ID */
     pub id: String,
     pub domain: String,
     pub username: String,

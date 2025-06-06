@@ -1,49 +1,52 @@
-/// 管理后台服务模块
-/// 
-/// 该模块实现了管理后台的核心业务逻辑服务，包括：
-/// - 用户管理：用户CRUD、认证、授权等
-/// - 角色管理：角色CRUD、权限分配等
-/// - 菜单管理：菜单CRUD、权限控制等
-/// - 组织管理：组织CRUD、层级关系等
-/// - 域名管理：域名CRUD、配置等
-/// - 访问密钥管理：API密钥CRUD、验证等
-/// - 日志管理：登录日志、操作日志等
-/// 
-/// 每个服务都实现了相应的trait接口，提供了统一的错误处理和事件通知机制。
-/// 
-/// # 主要组件
-/// 
-/// ## 核心服务
-/// * `SysUserService`: 用户管理服务
-/// * `SysRoleService`: 角色管理服务
-/// * `SysMenuService`: 菜单管理服务
-/// * `SysAuthService`: 认证服务
-/// * `SysAuthorizationService`: 授权服务
-/// 
-/// ## 辅助服务
-/// * `SysDomainService`: 域名管理服务
-/// * `SysAccessKeyService`: 访问密钥服务
-/// * `SysLoginLogService`: 登录日志服务
-/// * `SysOperationLogService`: 操作日志服务
-/// * `SysOrganizationService`: 组织管理服务
-/// 
-/// ## 事件处理
-/// * `event_handlers`: 事件处理器
-/// * `events`: 事件定义
-/// 
-/// # 使用示例
-/// 
-/// use server_service::admin::*;
-/// 
-/// // 创建用户服务实例
-/// let user_service = SysUserService::new();
-/// 
-/// // 创建角色服务实例
-/// let role_service = SysRoleService::new();
-/// 
-/// // 创建认证服务实例
-/// let auth_service = SysAuthService::new();
-/// 
+/** 管理后台服务模块
+ * 
+ * 该模块实现了管理后台的核心业务逻辑服务，包括：
+ * - 用户管理：用户CRUD、认证、授权等
+ * - 角色管理：角色CRUD、权限分配等
+ * - 菜单管理：菜单CRUD、权限控制等
+ * - 组织管理：组织CRUD、层级关系等
+ * - 域名管理：域名CRUD、配置等
+ * - 访问密钥管理：API密钥CRUD、验证等
+ * - 日志管理：登录日志、操作日志等
+ * 
+ * 每个服务都实现了相应的trait接口，提供了统一的错误处理和事件通知机制。
+ * 
+ * 主要组件
+ * --------
+ * 
+ * 核心服务
+ * --------
+ * * `SysUserService`: 用户管理服务，处理用户相关的所有操作
+ * * `SysRoleService`: 角色管理服务，处理角色和权限分配
+ * * `SysMenuService`: 菜单管理服务，处理菜单和路由配置
+ * * `SysAuthService`: 认证服务，处理用户登录和认证
+ * * `SysAuthorizationService`: 授权服务，处理权限验证和分配
+ * 
+ * 辅助服务
+ * --------
+ * * `SysDomainService`: 域名管理服务，处理多租户域名配置
+ * * `SysAccessKeyService`: 访问密钥服务，处理API密钥管理
+ * * `SysLoginLogService`: 登录日志服务，记录用户登录信息
+ * * `SysOperationLogService`: 操作日志服务，记录用户操作历史
+ * * `SysOrganizationService`: 组织管理服务，处理组织架构
+ * 
+ * 事件处理
+ * --------
+ * * `event_handlers`: 事件处理器，处理各种异步事件
+ * * `events`: 事件定义，定义系统中使用的各种事件类型
+ * 
+ * 使用示例
+ * --------
+ * /* 创建用户服务实例
+ *  * let user_service = SysUserService::new();
+ *  * 
+ *  * // 创建角色服务实例
+ *  * let role_service = SysRoleService::new();
+ *  * 
+ *  * // 创建认证服务实例
+ *  * let auth_service = SysAuthService::new();
+ *  */
+ */
 
 pub use errors::*;
 pub use server_model::admin::{

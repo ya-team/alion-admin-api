@@ -1,31 +1,34 @@
 use axum::http::HeaderMap;
 
-/// 客户端 IP 地址处理工具
-///
-/// 用于从 HTTP 请求头中获取真实的客户端 IP 地址。
-/// 支持多种代理服务器和 CDN 的请求头格式。
+/**
+ * 客户端 IP 地址处理工具
+ * 
+ * 用于从 HTTP 请求头中获取真实的客户端 IP 地址。
+ * 支持多种代理服务器和 CDN 的请求头格式。
+ */
 pub struct ClientIp;
 
 impl ClientIp {
-    /// 从请求头中获取真实的客户端 IP 地址
-    ///
-    /// # 参数
-    /// * `headers` - HTTP 请求头
-    ///
-    /// # 返回值
-    /// 返回客户端 IP 地址字符串，如果无法获取则返回 "unknown"
-    ///
-    /// # 示例
-    /// 
-    /// use axum::http::HeaderMap;
-    /// use server_core::web::util::ClientIp;
-    ///
-    /// let mut headers = HeaderMap::new();
-    /// headers.insert("X-Real-IP", "192.168.1.1".parse().unwrap());
-    ///
-    /// let ip = ClientIp::get_real_ip(&headers);
-    /// assert_ne!(ip, "unknown");
-    /// 
+    /**
+     * 从请求头中获取真实的客户端 IP 地址
+     * 
+     * # 参数
+     * * `headers` - HTTP 请求头
+     * 
+     * # 返回值
+     * 返回客户端 IP 地址字符串，如果无法获取则返回 "unknown"
+     * 
+     * # 示例
+     * 
+     * use axum::http::HeaderMap;
+     * use server_core::web::util::ClientIp;
+     * 
+     * let mut headers = HeaderMap::new();
+     * headers.insert("X-Real-IP", "192.168.1.1".parse().unwrap());
+     * 
+     * let ip = ClientIp::get_real_ip(&headers);
+     * assert_ne!(ip, "unknown");
+     */
     pub fn get_real_ip(headers: &HeaderMap) -> String {
         // 按优先级检查请求头
         // 不同的代理服务器和 CDN 可能使用不同的请求头来传递客户端 IP
@@ -58,13 +61,15 @@ impl ClientIp {
         "unknown".to_string()
     }
 
-    /// 检查 IP 地址是否有效
-    ///
-    /// # 参数
-    /// * `ip` - IP 地址字符串
-    ///
-    /// # 返回值
-    /// 如果 IP 地址有效则返回 true，否则返回 false
+    /**
+     * 检查 IP 地址是否有效
+     * 
+     * # 参数
+     * * `ip` - IP 地址字符串
+     * 
+     * # 返回值
+     * 如果 IP 地址有效则返回 true，否则返回 false
+     */
     pub fn is_valid_ip(ip: &str) -> bool {
         if ip == "unknown" {
             return false;
@@ -77,13 +82,15 @@ impl ClientIp {
             == 4
     }
 
-    /// 获取请求头中的所有 IP 相关信息
-    ///
-    /// # 参数
-    /// * `headers` - HTTP 请求头
-    ///
-    /// # 返回值
-    /// 返回一个包含所有 IP 相关请求头信息的 Vec
+    /**
+     * 获取请求头中的所有 IP 相关信息
+     * 
+     * # 参数
+     * * `headers` - HTTP 请求头
+     * 
+     * # 返回值
+     * 返回一个包含所有 IP 相关请求头信息的 Vec
+     */
     pub fn get_all_ip_headers(headers: &HeaderMap) -> Vec<(String, String)> {
         let ip_headers = [
             "X-Real-IP",
@@ -109,13 +116,15 @@ impl ClientIp {
             .collect()
     }
 
-    /// 从 X-Forwarded-For 头中获取代理链路
-    ///
-    /// # 参数
-    /// * `headers` - HTTP 请求头
-    ///
-    /// # 返回值
-    /// 返回代理链路中的所有 IP 地址，如果没有则返回空 Vec
+    /**
+     * 从 X-Forwarded-For 头中获取代理链路
+     * 
+     * # 参数
+     * * `headers` - HTTP 请求头
+     * 
+     * # 返回值
+     * 返回代理链路中的所有 IP 地址，如果没有则返回空 Vec
+     */
     pub fn get_proxy_chain(headers: &HeaderMap) -> Vec<String> {
         headers
             .get("X-Forwarded-For")

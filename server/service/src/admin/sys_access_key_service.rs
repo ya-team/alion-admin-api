@@ -1,3 +1,34 @@
+/** 访问密钥服务模块
+ * 
+ * 该模块提供了访问密钥（API Key）的管理功能，包括：
+ * - 访问密钥的创建和删除
+ * - 访问密钥的验证和授权
+ * - 访问密钥的分页查询
+ * 
+ * 主要组件
+ * --------
+ * 
+ * 服务接口
+ * --------
+ * * `TAccessKeyService`: 访问密钥服务接口，定义了核心操作方法
+ * * `SysAccessKeyService`: 访问密钥服务实现，提供了具体的业务逻辑
+ * 
+ * 事件处理
+ * --------
+ * * `api_key_validate_listener`: API密钥验证事件监听器
+ * 
+ * 使用示例
+ * --------
+ * /* 创建访问密钥
+ *  * let service = SysAccessKeyService;
+ *  * let result = service.create_access_key(CreateAccessKeyInput {
+ *  *     domain: "example.com".to_string(),
+ *  *     status: "active".to_string(),
+ *  *     description: "Test API Key".to_string(),
+ *  * }).await?;
+ *  */
+ */
+
 use std::any::Any;
 
 use async_trait::async_trait;
@@ -9,6 +40,7 @@ use sea_orm::{
 use server_core::{
     sign::{ApiKeyEvent, ValidatorType},
     web::{error::AppError, page::PaginatedData},
+    paginated_data,
 };
 use server_global::project_info;
 use server_model::admin::{
@@ -28,25 +60,104 @@ use crate::helper::db_helper;
 
 use super::sys_access_key_error::AccessKeyError;
 
+/** 访问密钥服务接口
+ * 
+ * 定义了访问密钥管理的核心接口，包括：
+ * - 分页查询访问密钥
+ * - 创建访问密钥
+ * - 删除访问密钥
+ * - 初始化访问密钥
+ */
 #[async_trait]
 pub trait TAccessKeyService {
+    /** 分页查询访问密钥
+     * 
+     * 根据查询条件分页获取访问密钥列表
+     * 
+     * 参数
+     * --------
+     * * `params` - 分页查询参数，包含关键字和分页信息
+     * 
+     * 返回
+     * --------
+     * * `Result<PaginatedData<SysAccessKeyModel>, AppError>` - 分页访问密钥数据或错误
+     */
     async fn find_paginated_access_keys(
         &self,
         params: AccessKeyPageRequest,
     ) -> Result<PaginatedData<SysAccessKeyModel>, AppError>;
+
+    /** 创建访问密钥
+     * 
+     * 创建新的访问密钥，包括：
+     * - 生成访问密钥ID和密钥
+     * - 设置密钥状态和描述
+     * - 记录创建信息
+     * 
+     * 参数
+     * --------
+     * * `input` - 访问密钥创建参数
+     * 
+     * 返回
+     * --------
+     * * `Result<SysAccessKeyModel, AppError>` - 创建的访问密钥信息或错误
+     */
     async fn create_access_key(
         &self,
         input: CreateAccessKeyInput,
     ) -> Result<SysAccessKeyModel, AppError>;
+
+    /** 删除访问密钥
+     * 
+     * 根据ID删除访问密钥，包括：
+     * - 从数据库中删除记录
+     * - 从验证器中移除密钥
+     * 
+     * 参数
+     * --------
+     * * `id` - 访问密钥ID
+     * 
+     * 返回
+     * --------
+     * * `Result<(), AppError>` - 删除结果
+     */
     async fn delete_access_key(&self, id: &str) -> Result<(), AppError>;
 
+    /** 初始化访问密钥
+     * 
+     * 系统启动时初始化访问密钥，包括：
+     * - 加载所有有效的访问密钥
+     * - 将密钥添加到验证器
+     * 
+     * 返回
+     * --------
+     * * `Result<(), AppError>` - 初始化结果
+     */
     async fn initialize_access_key(&self) -> Result<(), AppError>;
 }
 
+/** 访问密钥服务实现
+ * 
+ * 提供了访问密钥管理的具体实现，包括：
+ * - 访问密钥的CRUD操作
+ * - 访问密钥的验证和授权
+ * - 访问密钥的状态管理
+ */
 #[derive(Clone)]
 pub struct SysAccessKeyService;
 
 impl SysAccessKeyService {
+    /** 在事务中创建访问密钥
+     * 
+     * 参数
+     * --------
+     * * `txn` - 数据库事务
+     * * `access_key` - 访问密钥模型
+     * 
+     * 返回
+     * --------
+     * * `Result<SysAccessKeyModel, AppError>` - 创建的访问密钥信息或错误
+     */
     async fn create_access_key_in_transaction(
         &self,
         txn: &DatabaseTransaction,
@@ -66,6 +177,17 @@ impl SysAccessKeyService {
         Ok(result)
     }
 
+    /** 在事务中删除访问密钥
+     * 
+     * 参数
+     * --------
+     * * `txn` - 数据库事务
+     * * `id` - 访问密钥ID
+     * 
+     * 返回
+     * --------
+     * * `Result<(), AppError>` - 删除结果
+     */
     async fn delete_access_key_in_transaction(
         &self,
         txn: &DatabaseTransaction,
@@ -118,12 +240,12 @@ impl TAccessKeyService for SysAccessKeyService {
             .await
             .map_err(AppError::from)?;
 
-        Ok(PaginatedData {
-            current: params.page_details.current,
-            size: params.page_details.size,
+        Ok(paginated_data!(
             total,
-            records,
-        })
+            params.page_details.current,
+            params.page_details.size,
+            records
+        ))
     }
 
     async fn create_access_key(
@@ -204,6 +326,16 @@ impl TAccessKeyService for SysAccessKeyService {
     }
 }
 
+/** API密钥验证事件监听器
+ * 
+ * 监听并处理API密钥验证事件，用于：
+ * - 记录密钥验证日志
+ * - 监控密钥使用情况
+ * 
+ * 参数
+ * --------
+ * * `rx` - 事件接收器
+ */
 #[instrument(skip(rx))]
 pub async fn api_key_validate_listener(
     mut rx: tokio::sync::mpsc::UnboundedReceiver<Box<dyn Any + Send>>,

@@ -1,4 +1,15 @@
 #![allow(dead_code)]
+
+/**
+ * 数据库初始化模块
+ * 
+ * 本模块负责初始化和管理数据库连接，包括：
+ * - 初始化主数据库连接
+ * - 初始化数据库连接池
+ * - 管理多数据库实例
+ * - 提供数据库连接操作功能
+ */
+
 use std::{sync::Arc, time::Duration};
 use std::error::Error;
 
@@ -8,6 +19,21 @@ use server_global::global::{get_config, GLOBAL_DB_POOL, GLOBAL_PRIMARY_DB};
 
 use crate::{project_error, project_info};
 
+/**
+ * 初始化主数据库连接
+ * 
+ * 创建并初始化主数据库连接，同时将其添加到连接池中。
+ * 
+ * # 返回
+ * - 成功：返回数据库连接实例
+ * - 失败：返回错误信息
+ * 
+ * # 处理流程
+ * 1. 读取数据库配置
+ * 2. 构建连接选项
+ * 3. 建立数据库连接
+ * 4. 将连接添加到全局连接池
+ */
 pub async fn init_primary_connection() -> Result<DatabaseConnection, Box<dyn Error>> {
     let db_config = get_config::<DatabaseConfig>().await
         .ok_or_else(|| Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "Database config not found")))?;
@@ -28,7 +54,12 @@ pub async fn init_primary_connection() -> Result<DatabaseConnection, Box<dyn Err
     }
 }
 
-/// 初始化多数据库连接
+/**
+ * 初始化多数据库连接
+ * 
+ * 从配置中读取所有数据库实例配置，
+ * 并为每个实例创建数据库连接。
+ */
 pub async fn init_db_pools() {
     if let Some(databases_instances_config) =
         get_config::<OptionalConfigs<DatabasesInstancesConfig>>().await
@@ -39,6 +70,16 @@ pub async fn init_db_pools() {
     }
 }
 
+/**
+ * 初始化数据库连接池
+ * 
+ * # 参数
+ * - databases_config: 数据库实例配置列表
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 pub async fn init_db_pool_connections(
     databases_config: Option<Vec<DatabasesInstancesConfig>>,
 ) -> Result<(), String> {
@@ -50,6 +91,17 @@ pub async fn init_db_pool_connections(
     Ok(())
 }
 
+/**
+ * 初始化单个数据库连接
+ * 
+ * # 参数
+ * - name: 数据库实例名称
+ * - db_config: 数据库配置信息
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 async fn init_db_connection(name: &str, db_config: &DatabaseConfig) -> Result<(), String> {
     let opt = build_connect_options(db_config);
     match Database::connect(opt).await {
@@ -69,6 +121,20 @@ async fn init_db_connection(name: &str, db_config: &DatabaseConfig) -> Result<()
     }
 }
 
+/**
+ * 构建数据库连接选项
+ * 
+ * # 参数
+ * - db_config: 数据库配置信息
+ * 
+ * # 返回
+ * 返回配置好的数据库连接选项，包括：
+ * - 最大连接数
+ * - 最小空闲连接数
+ * - 连接超时时间
+ * - 空闲超时时间
+ * - 最大生命周期
+ */
 pub fn build_connect_options(db_config: &DatabaseConfig) -> ConnectOptions {
     let mut opt = ConnectOptions::new(db_config.url.clone());
     opt.max_connections(db_config.max_connections)
@@ -80,14 +146,42 @@ pub fn build_connect_options(db_config: &DatabaseConfig) -> ConnectOptions {
     opt
 }
 
+/**
+ * 获取主数据库连接
+ * 
+ * # 返回
+ * - 成功：返回主数据库连接实例
+ * - 失败：返回None
+ */
 pub async fn get_primary_db_connection() -> Option<Arc<DatabaseConnection>> {
     GLOBAL_PRIMARY_DB.read().await.clone()
 }
 
+/**
+ * 获取命名的数据库连接
+ * 
+ * # 参数
+ * - name: 数据库实例名称
+ * 
+ * # 返回
+ * - 成功：返回对应的数据库连接实例
+ * - 失败：返回None
+ */
 pub async fn get_db_pool_connection(name: &str) -> Option<Arc<DatabaseConnection>> {
     GLOBAL_DB_POOL.read().await.get(name).cloned()
 }
 
+/**
+ * 添加或更新数据库连接
+ * 
+ * # 参数
+ * - name: 数据库实例名称
+ * - db_config: 数据库配置信息
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 pub async fn add_or_update_db_pool_connection(
     name: &str,
     db_config: &DatabaseConfig,
@@ -95,6 +189,16 @@ pub async fn add_or_update_db_pool_connection(
     init_db_connection(name, db_config).await
 }
 
+/**
+ * 移除数据库连接
+ * 
+ * # 参数
+ * - name: 数据库实例名称
+ * 
+ * # 返回
+ * - 成功：返回Ok(())
+ * - 失败：返回错误信息
+ */
 pub async fn remove_db_pool_connection(name: &str) -> Result<(), String> {
     let mut db_pool = GLOBAL_DB_POOL.write().await;
     db_pool

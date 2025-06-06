@@ -1,7 +1,18 @@
+/**
+ * 域名相关输入参数定义
+ * 
+ * 包含域名分页、创建、更新等输入结构体。
+ */
+
 use serde::{Deserialize, Serialize};
 use server_core::web::page::PageRequest;
 use validator::Validate;
 
+/**
+ * 域名分页请求参数
+ * 
+ * 用于分页查询域名。
+ */
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DomainPageRequest {
     #[serde(flatten)]
@@ -9,6 +20,11 @@ pub struct DomainPageRequest {
     pub keywords: Option<String>,
 }
 
+/**
+ * 域名创建/更新输入参数
+ * 
+ * 用于创建和更新域名。
+ */
 #[derive(Deserialize, Validate)]
 pub struct DomainInput {
     #[validate(length(
@@ -27,8 +43,16 @@ pub struct DomainInput {
     pub description: Option<String>,
 }
 
+/**
+ * 域名创建输入类型别名
+ */
 pub type CreateDomainInput = DomainInput;
 
+/**
+ * 域名更新输入参数
+ * 
+ * 用于更新域名。
+ */
 #[derive(Deserialize, Validate)]
 pub struct UpdateDomainInput {
     pub id: String,
