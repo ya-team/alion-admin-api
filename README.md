@@ -98,8 +98,8 @@ alion-admin/
 1. 克隆项目
 
     ```bash
-    git clone https://github.com/alionjs/alion-admin.git
-    cd alion-admin
+    git clone git@github.com:ya-team/alion-admin-api.git
+    cd alion-admin-api
     ```
 
 2. 配置数据库
