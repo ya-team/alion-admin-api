@@ -1,0 +1,49 @@
+[package]
+name = "server-initialize"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+server-core = { path = "../core" }
+server-config = { path = "../config" }
+server-constant = { path = "../constant" }
+server-global = { path = "../global" }
+server-middleware = { path = "../middleware" }
+server-router = { path = "../router" }
+server-service = { path = "../service" }
+axum-casbin = { path = "../../axum-casbin" }
+sea-orm-adapter = { path = "../../sea-orm-adapter" }
+xdb = { path = "../../xdb" }
+
+log = { workspace = true }
+casbin = { workspace = true }
+sea-orm = { workspace = true, features = ["runtime-tokio-native-tls", "macros"] }
+axum = { workspace = true, features = ["http1", "json"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
+tower-http = { workspace = true, features = ["trace"] }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+tracing-error = { workspace = true }
+tracing-log = { workspace = true }
+chrono = { workspace = true, features = ["clock"] }
+
+http = { workspace = true }
+
+redis = { workspace = true }
+mongodb = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+
+[dev-dependencies]
+axum-test-helpers = { workspace = true }            # 不兼容axum0.8.x
+tower = { workspace = true, features = ["full"] }
+futures = { workspace = true }
+http = { workspace = true }
+http-body = { workspace = true }
+http-body-util = { workspace = true }
+bytes = { workspace = true }
+simplelog = { workspace = true }
+simple_logger = { workspace = true }
+jsonwebtoken = { workspace = true }

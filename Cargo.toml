@@ -1,0 +1,150 @@
+[workspace]
+members = ["server/api",
+    "axum-casbin",
+    "sea-orm-adapter",
+    "xdb",
+    "migration",
+    "server/api", "server/config", "server/core", "server/global", "server/initialize", "server/middleware", "server/model", "server/resource", "server/router", "server/service", "server/utils", "server/bin", "server/constant", "server/shared",
+]
+exclude = []
+resolver = "2"
+
+[profile.release]
+opt-level = 3               # 最高级别的优化，以获得最佳性能
+lto = "fat"                 # 启用全程序链接时优化，可能会显著提高性能，但会增加编译时间
+codegen-units = 1           # 使用单一代码生成单元，允许更多的跨模块优化
+panic = 'abort'             # 在 panic 时直接终止程序，减小二进制大小并略微提高性能
+strip = true                # 去除符号信息，进一步减小二进制大小
+debug = false               # 不包含调试信息，减小二进制大小
+incremental = false         # 禁用增量编译，确保每次构建都是完整的优化
+overflow-checks = false     # 禁用整数溢出检查，略微提高性能（但要小心使用）
+
+[profile.dev]
+split-debuginfo = "unpacked"
+
+[workspace.package]
+authors = ["yangcuiwang@ya.wang"]
+publish = false
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+# =========================================
+# 基础异步运行时和工具库（底层依赖）
+# =========================================
+tokio = { version = "1", default-features = false }             # 异步运行时库
+async-trait = { version = "0.1", default-features = false }     # 异步 trait 支持
+async-std = { version = "1.13", default-features = false }      # 另一个异步库
+futures = "0.3"                                                 # futures 库，用于异步编程
+
+# =========================================
+# Web框架和中间件（底层 Web 框架）
+# =========================================
+# 相关的 HTTP 库
+axum = "0.8.3"                                                  # Web 框架，建立在 hyper 之上
+axum-extra = "0.10"                                             # axum 的扩展
+tower = "0.5"                                                   # Tower 中间件库，axum 和其他库使用
+tower-http = "0.6"                                              # HTTP 相关的 Tower 中间件
+tower-layer = "0.3"                                             # 用于构建 Tower 中间件层
+tower-service = "0.3"                                           # 为服务定义 tower 服务
+http = "1.3.1"                                                  # HTTP 库，用于请求和响应
+http-body = "1.0"                                               # HTTP Body 支持库
+http-body-util = "0.1"                                          # HTTP Body 工具库
+bytes = "1.10"                                                  # 字节处理库
+validator = "0.20"                                              # 数据验证库
+
+# =========================================
+# JWT和身份认证
+# =========================================
+jsonwebtoken = "9.3"                                            # JSON Web Token (JWT) 库
+
+# =========================================
+# Casbin和授权相关（中间层）
+# =========================================
+casbin = { version = "2.10", default-features = false }         # 角色访问控制库
+
+# =========================================
+# 数据库 ORM 和适配器（底层数据库操作）
+# =========================================
+sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-native-tls", "macros"] }         # SeaORM，Rust 的 ORM 框架
+redis = "0.29"
+
+# =========================================
+# 测试相关依赖（用于测试）
+# =========================================
+axum-test-helpers = "0.8"                                       # axum 测试助手
+
+# =========================================
+# 序列化和反序列化库（中层）
+# =========================================
+serde = "1.0"                                                   # 序列化和反序列化基础库
+serde_yaml = "0.9"                                              # YAML 序列化和反序列化
+serde_json = "1.0"                                              # JSON 序列化和反序列化
+
+# =========================================
+# 实用工具库（辅助工具）
+# =========================================
+once_cell = "1.20"                                              # 延迟初始化工具
+tracing = "0.1"                                                 # 分布式追踪库
+tracing-subscriber = "0.3"                                      # tracing 库的订阅者实现
+tracing-error = "0.2"                                           # 用于错误跟踪的扩展
+tracing-log = "0.2"                                             # 将日志事件推送到 tracing
+log = "0.4"                                                     # 日志库
+env_logger = "0.11"                                             # 环境变量控制的日志实现
+simplelog = "0.12"                                              # 简单日志实现
+simple_logger = "5.0"                                           # 轻量级的日志实现
+thiserror = "2.0"                                               # 用于简化错误处理的库
+chrono = "0.4"                                                  # 时间和日期处理库
+lazy_static = "1.5"                                             # 延迟静态初始化库
+derive-new = "0.7"                                              # 自动派生 new 函数
+ulid = "1.2"                                                    # 用于生成 ULID 的库
+bcrypt = "0.17"                                                 # bcrypt 加密库
+argon2 = "0.5"                                                  # argon2 加密库
+toml = "0.8"                                                    # TOML 文件格式处理库
+
+ring = "0.17"                                                   # 加密库
+hex = "0.4"                                                     # 二进制转换库
+md-5 = "0.10"                                                   # MD5 加密库
+urlencoding = "2.1.3"                                             # URL 编码和解码库
+parking_lot = "0.12"                                            # 线程安全的锁
+moka = { version = "0.12", features = ["sync"] }                # 基于 LRU 的缓存库，支持同步
+
+# =========================================
+# 头部和 MIME 相关（Web 特性）
+# =========================================
+headers = "0.4"                                                 # HTTP headers 处理库
+mime = "0.3"                                                    # MIME 类型处理库
+
+# =========================================
+# 枚举和类型扩展（上层工具库）
+# =========================================
+strum = "0.27"                                                  # 枚举工具库
+strum_macros = "0.27"                                           # strum 宏库，用于派生 trait
+
+# =========================================
+# 并行和多线程库（上层工具）
+# =========================================
+rayon = "1.10"                                                  # 用于并行编程的库
+
+# =========================================
+# 表单编码相关（上层工具）
+# =========================================
+form_urlencoded = "1.2"                                         # 表单 URL 编码处理库
+
+# =========================================
+# MongoDB 相关依赖
+# =========================================
+mongodb = "3.2"                                                 # MongoDB 驱动库
+bson = "2.15"                                                   # BSON 序列化和反序列化库
+
+# =========================================
+# other
+# =========================================
+anyhow = "1.0"                                                  # 错误处理库，提供 Result 类型和错误转换
+askama = "0.14"                                                 # 类型安全的编译时模板引擎
+askama_derive = "0.14"                                          # askama 的派生宏支持
+convert_case = "0.8"                                            # 字符串命名风格转换工具
+
+aws-config = "1.6"
+aws-sdk-config = "1"
+aws-sdk-s3 = { version = "1", features = ["behavior-version-latest"] }

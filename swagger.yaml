@@ -1,0 +1,1109 @@
+openapi: 3.0.0
+info:
+  title: Alion Admin API
+  description: |
+    Alion Admin 后端API文档
+    
+    **所有接口路径均已统一加上 `/api` 前缀。**
+  version: 1.0.0
+  contact:
+    name: alionAdmin Team
+
+servers:
+  - url: http://127.0.0.1:9528
+    description: 本地开发环境
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: 用户名，长度至少5个字符
+          minLength: 5
+        password:
+          type: string
+          description: 密码，长度至少6个字符
+          minLength: 6
+
+    LoginResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              description: JWT访问令牌
+            refresh_token:
+              type: string
+              description: 刷新令牌
+
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        data:
+          type: object
+        message:
+          type: string
+        success:
+          type: boolean
+
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - 认证与授权
+      summary: 用户登录
+      description: 用户登录接口，用于验证用户身份并获取访问令牌
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: 请求参数错误
+        '401':
+          description: 认证失败
+        '500':
+          description: 服务器内部错误
+  /api/auth/userInfo:
+    get:
+      tags:
+        - 认证与授权
+      summary: 获取用户信息
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功获取用户信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                      user_name:
+                        type: string
+                      roles:
+                        type: array
+                        items:
+                          type: string
+              example:
+                code: 200
+                data:
+                  user_id: "1"
+                  user_name: "admin"
+                  roles: ["ROLE_SUPER"]
+        '401':
+          description: 未授权或 token 无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/auth/getUserRoutes:
+    get:
+      tags:
+        - 认证与授权
+      summary: 获取用户路由
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功获取用户路由
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  data:
+                    type: object
+                    properties:
+                      routes:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            path:
+                              type: string
+                            component:
+                              type: string
+                            name:
+                              type: string
+                            meta:
+                              type: object
+                              properties:
+                                title:
+                                  type: string
+                                icon:
+                                  type: string
+                                order:
+                                  type: number
+                            children:
+                              type: array
+                              items:
+                                type: object
+  /api/auth/assignPermission:
+    post:
+      tags:
+        - 认证与授权
+      summary: 分配角色权限
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - domain
+                - role_id
+                - permissions
+              properties:
+                domain:
+                  type: string
+                role_id:
+                  type: string
+                permissions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path:
+                        type: string
+                      method:
+                        type: string
+      responses:
+        '200':
+          description: 权限分配成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/auth/assignRoutes:
+    post:
+      tags:
+        - 认证与授权
+      summary: 分配角色路由
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - domain
+                - role_id
+                - route_ids
+              properties:
+                domain:
+                  type: string
+                role_id:
+                  type: string
+                route_ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: 路由分配成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/auth/accessKey:
+    post:
+      tags:
+        - 认证与授权
+      summary: 创建访问密钥
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - expire_time
+              properties:
+                name:
+                  type: string
+                expire_time:
+                  type: string
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      tags:
+        - 认证与授权
+      summary: 获取访问密钥列表
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/auth/accessKey/{id}:
+    delete:
+      tags:
+        - 认证与授权
+      summary: 删除访问密钥
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/user:
+    post:
+      tags:
+        - 用户管理
+      summary: 创建用户
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - domain
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                nick_name:
+                  type: string
+                email:
+                  type: string
+                phone_number:
+                  type: string
+                avatar:
+                  type: string
+                domain:
+                  type: string
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      tags:
+        - 用户管理
+      summary: 获取用户列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: username
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/user/{id}:
+    put:
+      tags:
+        - 用户管理
+      summary: 更新用户
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nick_name:
+                  type: string
+                email:
+                  type: string
+                phone_number:
+                  type: string
+                avatar:
+                  type: string
+                status:
+                  type: string
+                  enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags:
+        - 用户管理
+      summary: 删除用户
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/user/{id}/password:
+    put:
+      tags:
+        - 用户管理
+      summary: 重置密码
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+      responses:
+        '200':
+          description: 密码重置成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/role:
+    post:
+      tags:
+        - 角色管理
+      summary: 创建角色
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - code
+                - domain
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                description:
+                  type: string
+                domain:
+                  type: string
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      tags:
+        - 角色管理
+      summary: 获取角色列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/role/{id}:
+    put:
+      tags:
+        - 角色管理
+      summary: 更新角色
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags:
+        - 角色管理
+      summary: 删除角色
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/menu:
+    post:
+      tags:
+        - 菜单管理
+      summary: 创建菜单
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - path
+                - component
+              properties:
+                name:
+                  type: string
+                path:
+                  type: string
+                component:
+                  type: string
+                parent_id:
+                  type: string
+                icon:
+                  type: string
+                order:
+                  type: number
+                status:
+                  type: string
+                  enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      tags:
+        - 菜单管理
+      summary: 获取菜单列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/menu/{id}:
+    put:
+      tags:
+        - 菜单管理
+      summary: 更新菜单
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                path:
+                  type: string
+                component:
+                  type: string
+                icon:
+                  type: string
+                order:
+                  type: number
+                status:
+                  type: string
+                  enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags:
+        - 菜单管理
+      summary: 删除菜单
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/organization:
+    post:
+      tags:
+        - 组织管理
+      summary: 创建组织
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                parent_id:
+                  type: string
+                order:
+                  type: number
+                status:
+                  type: string
+                  enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      tags:
+        - 组织管理
+      summary: 获取组织列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/organization/{id}:
+    put:
+      tags:
+        - 组织管理
+      summary: 更新组织
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                order:
+                  type: number
+                status:
+                  type: string
+                  enum: [enabled, disabled]
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags:
+        - 组织管理
+      summary: 删除组织
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/domain:
+    post:
+      tags:
+        - 系统管理
+      summary: 创建域
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - code
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      tags:
+        - 系统管理
+      summary: 获取域列表
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/domain/{id}:
+    put:
+      tags:
+        - 系统管理
+      summary: 更新域
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags:
+        - 系统管理
+      summary: 删除域
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/endpoint:
+    post:
+      tags:
+        - 系统管理
+      summary: 创建端点
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - path
+                - method
+              properties:
+                path:
+                  type: string
+                method:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      tags:
+        - 系统管理
+      summary: 获取端点列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: path
+          in: query
+          schema:
+            type: string
+        - name: method
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/endpoint/{id}:
+    put:
+      tags:
+        - 系统管理
+      summary: 更新端点
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+                method:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags:
+        - 系统管理
+      summary: 删除端点
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/operationLog:
+    get:
+      tags:
+        - 系统管理
+      summary: 获取操作日志
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: username
+          in: query
+          schema:
+            type: string
+        - name: operation
+          in: query
+          schema:
+            type: string
+        - name: start_time
+          in: query
+          schema:
+            type: string
+        - name: end_time
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/loginLog:
+    get:
+      tags:
+        - 系统管理
+      summary: 获取登录日志
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: username
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: start_time
+          in: query
+          schema:
+            type: string
+        - name: end_time
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/sandbox/test:
+    get:
+      tags:
+        - 沙箱环境
+      summary: 测试接口
+      description: 用于测试环境的基本接口
+      responses:
+        '200':
+          description: 测试成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'

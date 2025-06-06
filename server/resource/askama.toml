@@ -1,0 +1,8 @@
+[general]
+default_template_ext = "askama"
+
+[template]
+extension = "askama"
+source = "templates"
+syntax = "askama"
+filters = ["lower", "title"]

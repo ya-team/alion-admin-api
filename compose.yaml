@@ -1,0 +1,64 @@
+services:
+    postgres:
+        image: postgres:17.4
+        environment:
+            TZ: Asia/Shanghai
+            POSTGRES_PASSWORD: alion@123.
+            POSTGRES_USER: alion
+            POSTGRES_DB: alion-admin
+        ports:
+            - "5432:5432"
+        volumes:
+            - alion-admin-postgres_data:/usr/share/docker/postgresql
+        networks:
+            - alion-admin
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "pg_isready -U alion -d alion-admin-nest-backend",
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    pgbouncer:
+        image: bitnami/pgbouncer:1.24.1
+        container_name: pgbouncer
+        hostname: pgbouncer
+        restart: always
+        environment:
+            - PGBOUNCER_DATABASE=*
+            - POSTGRESQL_USERNAME=alion
+            - POSTGRESQL_PASSWORD=alion@123.
+            - POSTGRESQL_DATABASE=alion-admin
+            - POSTGRESQL_HOST=postgres
+            - POSTGRESQL_PORT=5432
+        ports:
+            - "6432:6432"
+        networks:
+            - alion-admin
+
+    redis:
+        image: redis/redis-stack:7.4.0-v3
+        environment:
+            TZ: Asia/Shanghai
+        command: redis-server --requirepass 123456
+        ports:
+            - "6379:6379"
+        volumes:
+            - alion-admin-redis_data:/data
+        networks:
+            - alion-admin
+        healthcheck:
+            test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+volumes:
+    alion-admin-postgres_data:
+    alion-admin-redis_data:
+
+networks:
+    alion-admin:

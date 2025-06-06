@@ -1,0 +1,16 @@
+[package]
+name = "server-bin"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[dependencies]
+server-initialize = { path = "../initialize" }
+
+axum = { workspace = true, features = ["http1"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "macros"] }

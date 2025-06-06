@@ -1,0 +1,10 @@
+[package]
+name = "server-constant"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+strum = { workspace = true }
+strum_macros = { workspace = true }

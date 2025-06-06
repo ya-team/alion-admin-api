@@ -1,0 +1,19 @@
+[package]
+name = "server-api"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+server-core = { path = "../core" }
+server-service = { path = "../service" }
+server-global = { path = "../global" }
+server-model = { path = "../model" }
+axum-casbin = { path = "../../axum-casbin" }
+xdb = { path = "../../xdb" }
+
+axum = { workspace = true, features = ["http1", "query", "json", "multipart"] }
+axum-extra = { workspace = true, features = ["typed-header"] }
+headers = { workspace = true }
+sea-orm = { workspace = true, features = ["runtime-tokio-native-tls"] }

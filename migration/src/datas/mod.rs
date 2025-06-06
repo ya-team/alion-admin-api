@@ -1,0 +1,7 @@
+pub mod m20241023_102950_insert_sys_domain;
+pub mod m20241024_033005_insert_sys_user;
+pub mod m20241024_033933_insert_sys_user_role;
+pub mod m20241024_034305_insert_sys_role_menu;
+pub mod m20241024_034526_insert_sys_role;
+pub mod m20241024_034744_insert_sys_menu;
+pub mod m20241024_082926_insert_casbin_rule;

@@ -1,0 +1,22 @@
+[package]
+name = "server-model"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+server-core = { path = "../core" }
+
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["std"] }
+chrono = { workspace = true, features = ["serde"] }
+validator = { workspace = true, features = ["derive"] }
+derive-new = { workspace = true }
+
+sea-orm = { workspace = true, features = ["runtime-tokio-native-tls", "macros", "with-chrono", "with-json"] }
+
+axum = { version = "0.7", features = ["json"] }
+thiserror = "1.0"
+tracing = "0.1"
+tokio = { version = "1.0", features = ["time"] }

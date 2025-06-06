@@ -1,0 +1,156 @@
+use async_trait::async_trait;
+use chrono::Local;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, Set,
+};
+use server_core::web::{error::AppError, page::PaginatedData};
+use server_model::admin::{
+    entities::{
+        prelude::Sys{{ name }},
+        sys_{{ self.lower() }}::{
+            ActiveModel as Sys{{ name }}ActiveModel, Column as Sys{{ name }}Column, Model as Sys{{ name }}Model,
+        },
+    },
+    input::{Create{{ name }}Input, {{ name }}PageRequest, Update{{ name }}Input},
+};
+
+use super::sys_{{ self.lower() }}_error::{{ name }}Error;
+use crate::helper::db_helper;
+use ulid::Ulid;
+
+#[async_trait]
+pub trait T{{ name }}Service {
+    async fn find_paginated_{{ self.lower() }}s(
+        &self,
+        params: {{ name }}PageRequest,
+    ) -> Result<PaginatedData<Sys{{ name }}Model>, AppError>;
+
+    async fn create_{{ self.lower() }}(&self, input: Create{{ name }}Input) -> Result<Sys{{ name }}Model, AppError>;
+    async fn get_{{ self.lower() }}(&self, id: &str) -> Result<Sys{{ name }}Model, AppError>;
+    async fn update_{{ self.lower() }}(&self, input: Update{{ name }}Input) -> Result<Sys{{ name }}Model, AppError>;
+    async fn delete_{{ self.lower() }}(&self, id: &str) -> Result<(), AppError>;
+}
+
+#[derive(Clone)]
+pub struct Sys{{ name }}Service;
+
+impl Sys{{ name }}Service {
+    async fn check_{{ self.lower() }}_exists(&self, id: Option<&str>, code: &str) -> Result<(), AppError> {
+        let db = db_helper::get_db_connection().await?;
+        let mut query = Sys{{ name }}::find().filter(Sys{{ name }}Column::Code.eq(code));
+
+        if let Some(id) = id {
+            query = query.filter(Sys{{ name }}Column::Id.ne(id));
+        }
+
+        let existing_{{ self.lower() }} = query.one(db.as_ref()).await.map_err(AppError::from)?;
+
+        if existing_{{ self.lower() }}.is_some() {
+            return Err({{ name }}Error::Duplicate{{ name }}Code.into());
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl T{{ name }}Service for Sys{{ name }}Service {
+    async fn find_paginated_{{ self.lower() }}s(
+        &self,
+        params: {{ name }}PageRequest,
+    ) -> Result<PaginatedData<Sys{{ name }}Model>, AppError> {
+        let db = db_helper::get_db_connection().await?;
+        let mut query = Sys{{ name }}::find();
+
+        if let Some(ref keywords) = params.keywords {
+            let condition = Condition::any().add(Sys{{ name }}Column::Name.contains(keywords));
+            query = query.filter(condition);
+        }
+
+        let total = query
+            .clone()
+            .count(db.as_ref())
+            .await
+            .map_err(AppError::from)?;
+
+        let paginator = query.paginate(db.as_ref(), params.page_details.size);
+        let records = paginator
+            .fetch_page(params.page_details.current - 1)
+            .await
+            .map_err(AppError::from)?;
+
+        Ok(PaginatedData {
+            current: params.page_details.current,
+            size: params.page_details.size,
+            total,
+            records,
+        })
+    }
+
+    async fn create_{{ self.lower() }}(&self, input: Create{{ name }}Input) -> Result<Sys{{ name }}Model, AppError> {
+        let db = db_helper::get_db_connection().await?;
+
+        self.check_{{ self.lower() }}_exists(None, &input.code).await?;
+
+        let {{ self.lower() }} = Sys{{ name }}ActiveModel {
+            id: Set(Ulid::new().to_string()),
+            pid: Set(input.pid),
+            code: Set(input.code),
+            name: Set(input.name),
+            status: Set(input.status),
+            description: Set(input.description),
+            created_at: Set(Local::now().naive_local()),
+            created_by: Set("TODO".to_string()),
+            ..Default::default()
+        };
+
+        let result = {{ self.lower() }}.insert(db.as_ref()).await.map_err(AppError::from)?;
+        Ok(result)
+    }
+
+    async fn get_{{ self.lower() }}(&self, id: &str) -> Result<Sys{{ name }}Model, AppError> {
+        let db = db_helper::get_db_connection().await?;
+        Sys{{ name }}::find_by_id(id)
+            .one(db.as_ref())
+            .await
+            .map_err(AppError::from)?
+            .ok_or_else(|| {{ name }}Error::{{ name }}NotFound.into())
+    }
+
+    async fn update_{{ self.lower() }}(&self, input: Update{{ name }}Input) -> Result<Sys{{ name }}Model, AppError> {
+        let db = db_helper::get_db_connection().await?;
+
+        self.check_{{ self.lower() }}_exists(Some(&input.id), &input.{{ self.lower() }}.code)
+            .await?;
+
+        let {{ self.lower() }}: Sys{{ name }}ActiveModel = Sys{{ name }}::find_by_id(&input.id)
+            .one(db.as_ref())
+            .await
+            .map_err(AppError::from)?
+            .ok_or_else(|| AppError::from({{ name }}Error::{{ name }}NotFound))?
+            .into();
+
+        let {{ self.lower() }} = Sys{{ name }}ActiveModel {
+            id: Set(input.id.clone()),
+            pid: Set(input.{{ self.lower() }}.pid),
+            code: Set(input.{{ self.lower() }}.code),
+            name: Set(input.{{ self.lower() }}.name),
+            description: Set(input.{{ self.lower() }}.description),
+
+            updated_at: Set(Some(Local::now().naive_local())),
+            ..{{ self.lower() }}
+        };
+
+        let updated_{{ self.lower() }} = {{ self.lower() }}.update(db.as_ref()).await.map_err(AppError::from)?;
+        Ok(updated_{{ self.lower() }})
+    }
+
+    async fn delete_{{ self.lower() }}(&self, id: &str) -> Result<(), AppError> {
+        let db = db_helper::get_db_connection().await?;
+        Sys{{ name }}::delete_by_id(id)
+            .exec(db.as_ref())
+            .await
+            .map_err(AppError::from)?;
+        Ok(())
+    }
+}

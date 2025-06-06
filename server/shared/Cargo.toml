@@ -1,0 +1,8 @@
+[package]
+name = "server-shared"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

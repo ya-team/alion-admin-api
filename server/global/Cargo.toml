@@ -1,0 +1,20 @@
+[package]
+name = "server-global"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+once_cell = { workspace = true }
+sea-orm = { workspace = true, features = ["runtime-tokio-native-tls"] }
+tokio = { workspace = true, features = ["sync"] }
+jsonwebtoken = { workspace = true }
+http = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+
+redis = { workspace = true, features = ["cluster-async","connection-manager", "tokio-comp"] }
+mongodb = { workspace = true }
+aws-sdk-s3 = { workspace = true }

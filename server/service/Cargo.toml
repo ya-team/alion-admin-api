@@ -1,0 +1,31 @@
+[package]
+name = "server-service"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+server-constant = { path = "../constant" }
+server-core = { path = "../core" }
+server-global = { path = "../global" }
+server-model = { path = "../model" }
+server-utils = { path = "../utils" }
+
+axum-casbin = { path = "../../axum-casbin" }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt"] }
+sea-orm = { workspace = true }
+thiserror = { workspace = true }
+ulid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+redis = { workspace = true }
+mongodb = { workspace = true }
+once_cell.workspace = true
+validator = "0.16"
+regex = "1.10"
+
+[features]
+default = ["debug-print"]
+debug-print = ["sea-orm/debug-print"]

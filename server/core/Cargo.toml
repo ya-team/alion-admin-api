@@ -1,0 +1,48 @@
+[package]
+name = "server-core"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+server-config = { path = "../config" }
+server-constant = { path = "../constant" }
+server-global = { path = "../global" }
+
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+axum = { workspace = true }
+async-trait = { workspace = true }
+validator = { workspace = true, features = ["derive"] }
+jsonwebtoken = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+thiserror = { workspace = true }
+mime = { workspace = true }
+chrono = { workspace = true }
+sea-orm = { workspace = true }
+ulid = { workspace = true }
+
+redis = { workspace = true }
+mongodb = { workspace = true }
+
+http = { workspace = true }
+tower = { workspace = true }
+tower-layer = { workspace = true }
+tower-service = { workspace = true }
+
+futures = { workspace = true }
+bytes = { workspace = true }
+form_urlencoded = { workspace = true }
+
+tracing = { workspace = true }
+
+once_cell = { workspace = true }
+ring = { workspace = true }
+hex = { workspace = true }
+md-5 = { workspace = true }
+urlencoding = { workspace = true }
+parking_lot = { workspace = true }
+moka = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]

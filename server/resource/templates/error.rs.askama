@@ -1,0 +1,33 @@
+use server_core::web::error::{ApiError, AppError};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum {{ name }}Error {
+    #[error("{{ name }} not found")]
+    {{ name }}NotFound,
+
+    #[error("Duplicate {{ self.lower() }} code")]
+    Duplicate{{ name }}Code,
+}
+
+impl ApiError for {{ name }}Error {
+    fn code(&self) -> u16 {
+        match self {
+            {{ name }}Error::{{ name }}NotFound => 10001,
+            {{ name }}Error::Duplicate{{ name }}Code => 10002,
+        }
+    }
+
+    fn message(&self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl From<{{ name }}Error> for AppError {
+    fn from(err: {{ name }}Error) -> Self {
+        AppError {
+            code: err.code(),
+            message: err.message(),
+        }
+    }
+}

@@ -1,0 +1,12 @@
+[package]
+name = "server-utils"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+argon2 = { workspace = true, features = ["std", "password-hash"] }
+lazy_static = { workspace = true }
+
+rayon = { workspace = true }

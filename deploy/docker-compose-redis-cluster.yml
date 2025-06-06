@@ -1,0 +1,116 @@
+services:
+    redis-1:
+        image: redis:7.4-alpine
+        container_name: redis_1
+        command: redis-server /usr/local/etc/redis/redis.conf
+        volumes:
+            - ./redis-cluster/redis-1.conf:/usr/local/etc/redis/redis.conf
+            - redis_cluster_1_data:/data
+        ports:
+            - "7001:7001"
+            - "17001:17001"
+        networks:
+            - redis_cluster_net
+
+    redis-2:
+        image: redis:7.4-alpine
+        container_name: redis_2
+        command: redis-server /usr/local/etc/redis/redis.conf
+        volumes:
+            - ./redis-cluster/redis-2.conf:/usr/local/etc/redis/redis.conf
+            - redis_cluster_2_data:/data
+        ports:
+            - "7002:7002"
+            - "17002:17002"
+        networks:
+            - redis_cluster_net
+
+    redis-3:
+        image: redis:7.4-alpine
+        container_name: redis_3
+        command: redis-server /usr/local/etc/redis/redis.conf
+        volumes:
+            - ./redis-cluster/redis-3.conf:/usr/local/etc/redis/redis.conf
+            - redis_cluster_3_data:/data
+        ports:
+            - "7003:7003"
+            - "17003:17003"
+        networks:
+            - redis_cluster_net
+
+    redis-4:
+        image: redis:7.4-alpine
+        container_name: redis_4
+        command: redis-server /usr/local/etc/redis/redis.conf
+        volumes:
+            - ./redis-cluster/redis-4.conf:/usr/local/etc/redis/redis.conf
+            - redis_cluster_4_data:/data
+        ports:
+            - "7004:7004"
+            - "17004:17004"
+        networks:
+            - redis_cluster_net
+
+    redis-5:
+        image: redis:7.4-alpine
+        container_name: redis_5
+        command: redis-server /usr/local/etc/redis/redis.conf
+        volumes:
+            - ./redis-cluster/redis-5.conf:/usr/local/etc/redis/redis.conf
+            - redis_cluster_5_data:/data
+        ports:
+            - "7005:7005"
+            - "17005:17005"
+        networks:
+            - redis_cluster_net
+
+    redis-6:
+        image: redis:7.4-alpine
+        container_name: redis_6
+        command: redis-server /usr/local/etc/redis/redis.conf
+        volumes:
+            - ./redis-cluster/redis-6.conf:/usr/local/etc/redis/redis.conf
+            - redis_cluster_6_data:/data
+        ports:
+            - "7006:7006"
+            - "17006:17006"
+        networks:
+            - redis_cluster_net
+
+    redis-cluster-init:
+        image: redis:7.4-alpine
+        container_name: redis_cluster_init
+        command: >
+            sh -c '
+              echo "Waiting for redis nodes..." &&
+              sleep 5 &&
+              redis-cli -a 123456 --user alion --cluster create redis-1:7001 redis-2:7002 redis-3:7003 redis-4:7004 redis-5:7005 redis-6:7006 --cluster-replicas 1 --cluster-yes
+            '
+        networks:
+            - redis_cluster_net
+        depends_on:
+            - redis-1
+            - redis-2
+            - redis-3
+            - redis-4
+            - redis-5
+            - redis-6
+
+volumes:
+    redis_cluster_1_data:
+        name: redis_cluster_1_data
+    redis_cluster_2_data:
+        name: redis_cluster_2_data
+    redis_cluster_3_data:
+        name: redis_cluster_3_data
+    redis_cluster_4_data:
+        name: redis_cluster_4_data
+    redis_cluster_5_data:
+        name: redis_cluster_5_data
+    redis_cluster_6_data:
+        name: redis_cluster_6_data
+
+networks:
+    redis_cluster_net:
+        name: redis_cluster_network
+        driver: bridge

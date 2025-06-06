@@ -1,0 +1,27 @@
+[database]
+url = "postgres://postgres:123456@localhost:5432/alion-admin-backend"
+max_connections = 10
+min_connections = 1
+connect_timeout = 30
+idle_timeout = 600
+
+[server]
+host = "127.0.0.1"
+port = 9528
+
+[jwt]
+jwt_secret = "alion-admin"
+issuer = "https://github.com/ByteByteBrew/alion-admin"
+expire = 7200
+
+# 由于本项目最终目标可能仅仅作为一般rbac项目,因此redis作为可选组件,可以根据实际情况进行按需使用
+# 有需求自行取消注释
+[redis]
+mode = "single"
+url = "redis://:123456@localhost:6379/10"
+
+[[redis_instances]]
+name = "cache"
+[redis_instances.redis]
+mode = "single"
+url = "redis://:123456@localhost:6379/11"

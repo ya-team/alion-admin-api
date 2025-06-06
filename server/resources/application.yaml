@@ -1,0 +1,24 @@
+database:
+    url: "postgres://alion:alion%40123.@pgbouncer:6432/alion-admin"
+    max_connections: 5
+    min_connections: 1
+    connect_timeout: 5
+    idle_timeout: 60
+server:
+    host: "0.0.0.0"
+    port: 10001
+jwt:
+    jwt_secret: "alion-admin"
+    issuer: "https://github.com/ByteByteBrew/alion-admin"
+    expire: 7200
+redis:
+    mode: single
+    url: "redis://:123456@redis:6379/10"
+# 可选 自行配置
+# mongo:
+#     uri: "mongodb://localhost:27017"
+# s3:
+#     region: "oss-cn-beijing"
+#     access_key_id: "x"
+#     secret_access_key: "x"
+#     endpoint: "https://oss-cn-beijing.aliyuncs.com"

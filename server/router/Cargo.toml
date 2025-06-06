@@ -1,0 +1,13 @@
+[package]
+name = "server-router"
+authors.workspace = true
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+server-api = { path = "../api" }
+server-global = { path = "../global" }
+server-core = { path = "../core" }
+
+axum = { workspace = true, features = ["matched-path"] }

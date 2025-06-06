@@ -1,0 +1,51 @@
+services:
+    postgres:
+        image: postgres:17.2-alpine
+        container_name: alion_postgres
+        environment:
+            POSTGRES_DB: alion-admin-backend
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: 123456
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        networks:
+            - alion_net
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "pg_isready -U postgres -d alion-admin-backend",
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    redis:
+        image: redis:7.4-alpine
+        container_name: alion_redis
+        command: redis-server /usr/local/etc/redis/redis.conf
+        ports:
+            - "6379:6379"
+        volumes:
+            - ./redis.conf:/usr/local/etc/redis/redis.conf
+            - redis_data:/data
+        networks:
+            - alion_net
+        healthcheck:
+            test: ["CMD", "redis-cli", "AUTH", "alion", "123456", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+volumes:
+    postgres_data:
+        name: alion_postgres_data
+    redis_data:
+        name: alion_redis_data
+
+networks:
+    alion_net:
+        name: alion_network
+        driver: bridge

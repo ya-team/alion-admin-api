@@ -1,0 +1,52 @@
+use std::sync::Arc;
+
+use axum::{
+    extract::{Path, Query},
+    Extension,
+};
+use server_core::web::{error::AppError, page::PaginatedData, res::Res, validator::ValidatedForm};
+use server_service::admin::{
+    Create{{ self.title() }}Input, {{ self.title() }}PageRequest, Sys{{ self.title() }}Model, Sys{{ self.title() }}Service, T{{ self.title() }}Service, Update{{ self.title() }}Input,
+};
+
+pub struct Sys{{ self.title() }}Api;
+
+impl Sys{{ self.title() }}Api {
+    pub async fn get_paginated_{{ self.lower() }}s(
+        Query(params): Query<{{ self.title() }}PageRequest>,
+        Extension(service): Extension<Arc<Sys{{ self.title() }}Service>>,
+    ) -> Result<Res<PaginatedData<Sys{{ self.title() }}Model>>, AppError> {
+        service
+            .find_paginated_{{ self.lower() }}s(params)
+            .await
+            .map(Res::new_data)
+    }
+
+    pub async fn create_{{ self.lower() }}(
+        Extension(service): Extension<Arc<Sys{{ self.title() }}Service>>,
+        ValidatedForm(input): ValidatedForm<Create{{ self.title() }}Input>,
+    ) -> Result<Res<Sys{{ self.title() }}Model>, AppError> {
+        service.create_{{ self.lower() }}(input).await.map(Res::new_data)
+    }
+
+    pub async fn get_{{ self.lower() }}(
+        Path(id): Path<String>,
+        Extension(service): Extension<Arc<Sys{{ self.title() }}Service>>,
+    ) -> Result<Res<Sys{{ self.title() }}Model>, AppError> {
+        service.get_{{ self.lower() }}(&id).await.map(Res::new_data)
+    }
+
+    pub async fn update_{{ self.lower() }}(
+        Extension(service): Extension<Arc<Sys{{ self.title() }}Service>>,
+        ValidatedForm(input): ValidatedForm<Update{{ self.title() }}Input>,
+    ) -> Result<Res<Sys{{ self.title() }}Model>, AppError> {
+        service.update_{{ self.lower() }}(input).await.map(Res::new_data)
+    }
+
+    pub async fn delete_{{ self.lower() }}(
+        Path(id): Path<String>,
+        Extension(service): Extension<Arc<Sys{{ self.title() }}Service>>,
+    ) -> Result<Res<()>, AppError> {
+        service.delete_{{ self.lower() }}(&id).await.map(Res::new_data)
+    }
+}
