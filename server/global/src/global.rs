@@ -551,8 +551,8 @@ impl OperationLogContext {
  * # 参数
  * * `msg` - 事件消息
  */
-pub fn send_string_event(msg: String) {
-    let tx = EVENT_CHANNELS.blocking_lock().string_tx.clone();
+pub async fn send_string_event(msg: String) {
+    let tx = EVENT_CHANNELS.lock().await.string_tx.clone();
     let _ = tx.send(msg);
 }
 

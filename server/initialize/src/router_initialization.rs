@@ -154,15 +154,23 @@ pub async fn initialize_admin_router() -> Router {
 
     // 初始化验证器
     // 根据是否配置了 Redis 来选择 nonce 存储实现
-    let redis_client = redis::Client::open("redis://127.0.0.1/").unwrap();
     let nonce_store_factory =
         if let Some(_) = crate::redis_initialization::get_primary_redis().await {
             // 如果 Redis 可用，使用 Redis 作为 nonce 存储
             project_info!("Using Redis for nonce storage");
-            server_core::sign::create_redis_nonce_store_factory(
-                redis_client,
-                Duration::from_secs(300) // 5 minutes nonce expiration
-            )
+            match redis::Client::open("redis://127.0.0.1/") {
+                Ok(redis_client) => {
+                    server_core::sign::create_redis_nonce_store_factory(
+                        redis_client,
+                        Duration::from_secs(300) // 5 minutes nonce expiration
+                    )
+                },
+                Err(e) => {
+                    project_error!("Failed to create Redis client: {}", e);
+                    project_info!("Falling back to memory storage");
+                    server_core::sign::create_memory_nonce_store_factory()
+                }
+            }
         } else {
             // 否则使用内存存储
             project_info!("Using memory for nonce storage");

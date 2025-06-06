@@ -168,7 +168,7 @@ impl JwtUtils {
         let token = encode(&Header::default(), &claims_clone, &keys.encoding)
             .map_err(|e| JwtError::TokenCreationError(e.to_string()))?;
 
-        global::send_string_event(token.clone());
+        global::send_string_event(token.clone()).await;
 
         Ok(token)
     }
