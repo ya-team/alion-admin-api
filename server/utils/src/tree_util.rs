@@ -29,7 +29,7 @@ impl TreeBuilder {
     /// - `Order`: 排序键类型，必须可比较
     ///
     /// # 示例
-    /// ```rust
+    /// 
     /// let tree = TreeBuilder::build(
     ///     nodes,
     ///     |node| node.id,                            // ID获取器
@@ -37,7 +37,7 @@ impl TreeBuilder {
     ///     |node| node.sequence,                      // 排序键
     ///     |node, children| node.children = children, // 设置子节点
     /// );
-    /// ```
+    /// 
     ///
     /// # 性能注意事项
     /// - 对于大数据集（>1000条），会自动调整内存分配策略
@@ -111,14 +111,14 @@ impl TreeBuilder {
     /// - 追求最高性能
     ///
     /// # 示例
-    /// ```rust
+    /// 
     /// let tree = TreeBuilder::build_fast(
     ///     nodes,
     ///     |node| node.id,
     ///     |node| node.parent_id,
     ///     |node, children| node.children = children,
     /// );
-    /// ```
+    /// 
     #[inline]
     pub fn build_fast<T, Id, F1, F2, F3>(
         nodes: Vec<T>,

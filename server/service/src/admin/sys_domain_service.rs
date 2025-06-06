@@ -1,3 +1,46 @@
+//! 系统域服务模块
+//! 
+//! 该模块提供了域管理相关的核心功能，包括：
+//! - 域CRUD操作
+//! - 域分页查询
+//! - 域代码和名称唯一性检查
+//! 
+//! # 主要组件
+//! 
+//! ## 核心接口
+//! * `TDomainService`: 域服务 trait，定义了域管理相关的核心接口
+//! * `SysDomainService`: 域服务实现，提供了具体的域管理逻辑
+//! 
+//! ## 功能特性
+//! * 域查询：支持分页查询和关键字搜索
+//! * 域创建：支持创建新域，包括代码和名称唯一性检查
+//! * 域更新：支持更新域信息，包括代码和名称唯一性检查
+//! * 域删除：支持删除域，内置域不可删除
+//! 
+//! # 使用示例
+//! 
+//! use server_service::admin::sys_domain_service::*;
+//! 
+//! // 创建域服务实例
+//! let domain_service = SysDomainService;
+//! 
+//! // 创建新域
+//! let domain = domain_service.create_domain(CreateDomainInput {
+//!     code: "example".to_string(),
+//!     name: "示例域".to_string(),
+//!     description: Some("这是一个示例域".to_string()),
+//! }).await?;
+//! 
+//! // 分页查询域
+//! let domains = domain_service.find_paginated_domains(DomainPageRequest {
+//!     keywords: Some("示例".to_string()),
+//!     page_details: PageDetails {
+//!         current: 1,
+//!         size: 10,
+//!     },
+//! }).await?;
+//! 
+
 use async_trait::async_trait;
 use chrono::Local;
 use sea_orm::{
@@ -18,23 +61,129 @@ use ulid::Ulid;
 
 use crate::{admin::sys_domain_error::DomainError, helper::db_helper};
 
+/// 域服务 trait
+/// 
+/// 定义了域管理相关的核心接口，包括：
+/// - 域查询（分页）
+/// - 域创建
+/// - 域更新
+/// - 域删除
+/// 
+/// # 使用示例
+/// 
+/// use server_service::admin::sys_domain_service::*;
+/// 
+/// let domain_service = SysDomainService;
+/// 
+/// // 分页查询域
+/// let domains = domain_service.find_paginated_domains(DomainPageRequest {
+///     keywords: Some("示例".to_string()),
+///     page_details: PageDetails {
+///         current: 1,
+///         size: 10,
+///     },
+/// }).await?;
+/// 
 #[async_trait]
 pub trait TDomainService {
+    /// 分页查询域
+    /// 
+    /// 根据查询条件分页获取域列表
+    /// 
+    /// # 参数
+    /// * `params` - 分页查询参数，包含关键字和分页信息
+    /// 
+    /// # 返回
+    /// * `Result<PaginatedData<SysDomainModel>, AppError>` - 分页域数据或错误
     async fn find_paginated_domains(
         &self,
         params: DomainPageRequest,
     ) -> Result<PaginatedData<SysDomainModel>, AppError>;
 
+    /// 创建域
+    /// 
+    /// 创建新域，包括代码和名称唯一性检查
+    /// 
+    /// # 参数
+    /// * `input` - 域创建参数
+    /// 
+    /// # 返回
+    /// * `Result<SysDomainModel, AppError>` - 创建的域信息或错误
     async fn create_domain(&self, input: CreateDomainInput) -> Result<SysDomainModel, AppError>;
+
+    /// 获取域
+    /// 
+    /// 根据域ID获取域信息
+    /// 
+    /// # 参数
+    /// * `id` - 域ID
+    /// 
+    /// # 返回
+    /// * `Result<SysDomainModel, AppError>` - 域信息或错误
     async fn get_domain(&self, id: &str) -> Result<SysDomainModel, AppError>;
+
+    /// 更新域
+    /// 
+    /// 更新域信息，包括代码和名称唯一性检查
+    /// 
+    /// # 参数
+    /// * `input` - 域更新参数
+    /// 
+    /// # 返回
+    /// * `Result<SysDomainModel, AppError>` - 更新后的域信息或错误
     async fn update_domain(&self, input: UpdateDomainInput) -> Result<SysDomainModel, AppError>;
+
+    /// 删除域
+    /// 
+    /// 根据域ID删除域，内置域不可删除
+    /// 
+    /// # 参数
+    /// * `id` - 域ID
+    /// 
+    /// # 返回
+    /// * `Result<(), AppError>` - 删除结果
     async fn delete_domain(&self, id: &str) -> Result<(), AppError>;
 }
 
+/// 系统域服务
+/// 
+/// 实现了域管理相关的核心功能，包括：
+/// - 域CRUD操作
+/// - 域分页查询
+/// - 域代码和名称唯一性检查
+/// 
+/// # 使用示例
+/// 
+/// use server_service::admin::sys_domain_service::*;
+/// 
+/// let domain_service = SysDomainService;
+/// 
+/// // 创建域
+/// let domain = domain_service.create_domain(CreateDomainInput {
+///     code: "example".to_string(),
+///     name: "示例域".to_string(),
+///     description: Some("这是一个示例域".to_string()),
+/// }).await?;
+/// 
 #[derive(Clone)]
 pub struct SysDomainService;
 
 impl SysDomainService {
+    /// 检查域代码和名称唯一性
+    /// 
+    /// 检查域代码和名称是否已存在，支持排除当前域
+    /// 
+    /// # 参数
+    /// * `id` - 当前域ID（可选）
+    /// * `code` - 域代码
+    /// * `name` - 域名称
+    /// 
+    /// # 返回
+    /// * `Result<(), AppError>` - 检查结果
+    /// 
+    /// # 错误
+    /// * `DuplicateCode` - 域代码已存在
+    /// * `DuplicateName` - 域名称已存在
     async fn check_domain_exists(
         &self,
         id: Option<&str>,

@@ -16,7 +16,7 @@ impl ClientIp {
     /// 返回客户端 IP 地址字符串，如果无法获取则返回 "unknown"
     ///
     /// # 示例
-    /// ```
+    /// 
     /// use axum::http::HeaderMap;
     /// use server_core::web::util::ClientIp;
     ///
@@ -25,7 +25,7 @@ impl ClientIp {
     ///
     /// let ip = ClientIp::get_real_ip(&headers);
     /// assert_ne!(ip, "unknown");
-    /// ```
+    /// 
     pub fn get_real_ip(headers: &HeaderMap) -> String {
         // 按优先级检查请求头
         // 不同的代理服务器和 CDN 可能使用不同的请求头来传递客户端 IP

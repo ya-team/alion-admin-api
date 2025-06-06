@@ -6,24 +6,61 @@
 //! - 用户路由获取
 //! - 登录事件处理
 //! 
-//! 主要组件：
-//! - `TAuthService`: 认证服务 trait，定义了认证相关的核心接口
-//! - `SysAuthService`: 认证服务实现，提供了具体的认证逻辑
-//! - `AuthEvent`: 认证事件，用于处理登录相关的异步事件
+//! # 主要组件
+//! 
+//! ## 核心接口
+//! * `TAuthService`: 认证服务 trait，定义了认证相关的核心接口
+//! * `SysAuthService`: 认证服务实现，提供了具体的认证逻辑
+//! 
+//! ## 事件处理
+//! * `AuthEvent`: 认证事件，用于处理登录相关的异步事件
+//! * `auth_login_listener`: 登录事件监听器
+//! * `jwt_created_listener`: JWT创建事件监听器
+//! 
+//! ## 辅助功能
+//! * `generate_auth_output`: 生成认证输出
+//! * `send_auth_event`: 发送认证事件
+//! * `handle_auth_event`: 处理认证事件
+//! 
+//! # 使用示例
+//! use server_service::admin::sys_auth_service::*;
+//! 
+//! // 创建认证服务实例
+//! let auth_service = SysAuthService;
+//! 
+//! // 执行密码登录
+//! let output = auth_service.pwd_login(
+//!     db,
+//!     LoginInput {
+//!         username: "admin".to_string(),
+//!         password: "password".to_string(),
+//!     },
+//!     LoginContext {
+//!         client_ip: "127.0.0.1".to_string(),
+//!         client_port: Some(8080),
+//!         address: "localhost".to_string(),
+//!         user_agent: "Mozilla/5.0".to_string(),
+//!         request_id: "req-123".to_string(),
+//!         audience: Audience::Admin,
+//!         login_type: "password".to_string(),
+//!         domain: "example.com".to_string(),
+//!     },
+//! ).await?;
 
 use std::{any::Any, sync::Arc};
 
 use async_trait::async_trait;
+#[allow(unused_imports)]
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, JoinType, QueryFilter, QueryOrder, QuerySelect,
-    RelationTrait,
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, JoinType, QueryFilter, QueryOrder, QuerySelect,
+    RelationTrait, Set,
 };
-use server_constant::definition::{consts::SystemEvent, Audience};
+use server_constant::definition::{Audience};
 use server_core::web::{
     auth::Claims,
-    jwt::{JwtError, JwtUtils},
+    jwt::{JwtUtils},
 };
-use server_global::{global, project_error, project_info};
+use server_global::{project_error, project_info};
 use server_model::admin::{
     entities::{
         prelude::{SysRole, SysUser},
@@ -41,19 +78,26 @@ use server_model::admin::{
 use server_utils::{SecureUtil, TreeBuilder};
 use tokio::sync::mpsc;
 use tracing::instrument;
-use ulid::Ulid;
-
-use crate::admin::{
-    dto::sys_auth_dto::LoginContext,
-    errors::AuthError,
-    event_handlers::auth_event_handler::{AuthEvent, AuthEventHandler},
-};
+use crate::admin::dto::sys_auth_dto::LoginContext;
+use crate::admin::event_handlers::auth_event_handler::{AuthEvent, AuthEventHandler};
+use crate::admin::errors::AuthError;
 
 /// 用户查询宏，用于构建包含域和组织信息的用户查询
 /// 
 /// 该宏封装了常用的用户查询字段，包括：
 /// - 用户基本信息（ID、用户名、密码等）
 /// - 域信息（域代码、域名称）
+/// 
+/// # 参数
+/// * `$query` - 查询构建器
+/// 
+/// # 返回
+/// * 构建好的查询，包含用户和域信息
+/// 
+/// # 使用示例
+/// 
+/// let query = select_user_with_domain_and_org_info!(SysUser::find());
+/// 
 macro_rules! select_user_with_domain_and_org_info {
     ($query:expr) => {{
         $query
@@ -227,74 +271,28 @@ impl SysAuthService {
 
         self.pwd_login(db, input, context).await
     }
-}
-
-#[async_trait]
-impl TAuthService for SysAuthService {
-    /// 执行密码登录认证
-    /// 
-    /// 实现步骤：
-    /// 1. 验证用户基本信息
-    /// 2. 获取用户角色
-    /// 3. 生成认证令牌
-    /// 4. 异步发送登录事件
-    #[instrument(skip(self, db, input), fields(username = %input.username, domain = %context.domain))]
-    async fn pwd_login(
-        &self,
-        db: Arc<DatabaseConnection>,
-        input: LoginInput,
-        context: LoginContext,
-    ) -> Result<AuthOutput, AuthError> {
-        // 先验证用户基本信息（不包含角色）
-        let user = self.verify_user_basic(&db, &input.username, &input.password, &context.domain).await?;
-
-        // 并行获取用户角色
-        let role_codes = self.get_user_roles(&user.id, &db).await?;
-
-        // 生成认证输出
-        let auth_output = generate_auth_output(
-            user.id.clone(),
-            user.username.clone(),
-            role_codes,
-            user.domain_code.clone(),
-            None,
-            context.audience,
-        )
-        .await
-        .map_err(|e| AuthError::JwtGenerationFailed(e.to_string()))?;
-
-        // 发送认证事件
-        let auth_event = AuthEvent {
-            user_id: user.id,
-            username: user.username,
-            domain: user.domain_code,
-            access_token: auth_output.token.clone(),
-            refresh_token: auth_output.refresh_token.clone(),
-            client_ip: context.client_ip,
-            client_port: context.client_port,
-            address: context.address,
-            user_agent: context.user_agent,
-            request_id: context.request_id,
-            login_type: context.login_type,
-        };
-
-        // 异步发送事件，不阻塞登录流程
-        tokio::spawn(async move {
-            global::send_dyn_event(
-                SystemEvent::AuthLoggedInEvent.as_ref(),
-                Box::new(auth_event),
-            );
-        });
-
-        Ok(auth_output)
-    }
 
     /// 验证用户基本信息
     /// 
-    /// 验证步骤：
-    /// 1. 查询用户信息
-    /// 2. 验证用户状态
-    /// 3. 验证密码
+    /// 验证用户的登录凭证，包括：
+    /// - 用户名和密码验证
+    /// - 用户状态检查
+    /// - 域信息验证
+    /// 
+    /// # 参数
+    /// * `db` - 数据库连接
+    /// * `identifier` - 用户标识（用户名）
+    /// * `password` - 密码
+    /// * `domain` - 域代码
+    /// 
+    /// # 返回
+    /// * `Result<UserWithDomainAndOrgOutput, AuthError>` - 用户信息或错误
+    /// 
+    /// # 错误
+    /// * `InvalidCredentials` - 用户名或密码错误
+    /// * `UserDisabled` - 用户已禁用
+    /// * `DomainNotFound` - 域不存在
+    #[instrument(skip(self, db, password), fields(identifier = %identifier, domain = %domain))]
     async fn verify_user_basic(
         &self,
         db: &Arc<DatabaseConnection>,
@@ -326,8 +324,15 @@ impl TAuthService for SysAuthService {
 
     /// 获取用户角色列表
     /// 
-    /// 通过用户ID查询关联的角色信息
-    #[instrument(skip(self, user_id, db))]
+    /// 查询用户关联的所有角色代码
+    /// 
+    /// # 参数
+    /// * `user_id` - 用户ID
+    /// * `db` - 数据库连接
+    /// 
+    /// # 返回
+    /// * `Result<Vec<String>, AuthError>` - 角色代码列表或错误
+    #[instrument(skip(self, db), fields(user_id = %user_id))]
     async fn get_user_roles(
         &self,
         user_id: &str,
@@ -347,13 +352,19 @@ impl TAuthService for SysAuthService {
 
     /// 获取用户路由信息
     /// 
-    /// 根据用户角色和域获取可访问的路由信息
+    /// 根据用户角色获取可访问的路由信息，包括：
+    /// - 菜单路由
+    /// - 路由元数据
+    /// - 权限信息
     /// 
-    /// 实现步骤：
-    /// 1. 获取角色关联的菜单ID
-    /// 2. 查询菜单信息
-    /// 3. 构建路由树
-    #[instrument(skip(self, db), fields(roles = ?role_codes, domain = %domain))]
+    /// # 参数
+    /// * `db` - 数据库连接
+    /// * `role_codes` - 角色代码列表
+    /// * `domain` - 域代码
+    /// 
+    /// # 返回
+    /// * `Result<UserRoute, AuthError>` - 用户路由信息或错误
+    #[instrument(skip(self, db, role_codes), fields(domain = %domain))]
     async fn get_user_routes(
         &self,
         db: Arc<DatabaseConnection>,
@@ -446,9 +457,180 @@ impl TAuthService for SysAuthService {
     }
 }
 
+#[async_trait]
+impl TAuthService for SysAuthService {
+    async fn pwd_login(
+        &self,
+        db: Arc<DatabaseConnection>,
+        input: LoginInput,
+        context: LoginContext,
+    ) -> Result<AuthOutput, AuthError> {
+        // 验证用户信息
+        let user = self.verify_user_basic(&db, &input.username, &input.password, &context.domain).await?;
+
+        // 获取用户角色
+        let role_codes = self.get_user_roles(&user.id, &db).await?;
+
+        // 生成认证输出
+        let auth_output = generate_auth_output(
+            user.id,
+            user.username,
+            role_codes,
+            user.domain_code,
+            None,
+            context.audience,
+        ).await?;
+
+        Ok(auth_output)
+    }
+
+    async fn get_user_routes(
+        &self,
+        db: Arc<DatabaseConnection>,
+        role_codes: &[String],
+        domain: &str,
+    ) -> Result<UserRoute, AuthError> {
+        if role_codes.is_empty() {
+            return Ok(UserRoute {
+                routes: vec![],
+                home: "/home".to_string(),
+            });
+        }
+
+        // 获取角色关联的菜单ID
+        let menu_ids = SysRoleMenuEntity::find()
+            .select_only()
+            .column(SysRoleMenuColumn::MenuId)
+            .join_rev(
+                JoinType::InnerJoin,
+                SysRoleEntity::has_many(SysRoleMenuEntity).into(),
+            )
+            .filter(SysRoleColumn::Code.is_in(role_codes.to_vec()))
+            .filter(SysRoleMenuColumn::Domain.eq(domain))
+            .distinct()
+            .into_tuple::<i32>()
+            .all(db.as_ref())
+            .await
+            .map_err(|e| AuthError::DatabaseOperationFailed(e.to_string()))?;
+
+        // 查询菜单信息
+        let menus = SysMenuEntity::find()
+            .filter(SysMenuColumn::Id.is_in(menu_ids))
+            .filter(SysMenuColumn::Status.eq(Status::Enabled))
+            .order_by_asc(SysMenuColumn::Sequence)
+            .into_model::<SysMenuModel>()
+            .all(db.as_ref())
+            .await
+            .map_err(|e| AuthError::DatabaseOperationFailed(e.to_string()))?;
+
+        // 构建菜单路由
+        let menu_routes: Vec<MenuRoute> = menus
+            .into_iter()
+            .map(|menu| MenuRoute {
+                name: menu.route_name,
+                path: menu.route_path,
+                component: menu.component,
+                meta: RouteMeta {
+                    title: menu.menu_name,
+                    i18n_key: menu.i18n_key,
+                    keep_alive: menu.keep_alive,
+                    constant: menu.constant,
+                    icon: menu.icon,
+                    order: menu.sequence,
+                    href: menu.href,
+                    hide_in_menu: menu.hide_in_menu,
+                    active_menu: menu.active_menu,
+                    multi_tab: menu.multi_tab,
+                },
+                children: Some(vec![]),
+                id: menu.id,
+                pid: menu.pid,
+            })
+            .collect();
+
+        let menu_routes_ref = menu_routes.clone();
+
+        // 构建路由树
+        let routes = TreeBuilder::build(
+            menu_routes,
+            |route| route.name.clone(),
+            |route| {
+                if route.pid == "0" {
+                    None
+                } else {
+                    menu_routes_ref
+                        .iter()
+                        .find(|m| m.id.to_string() == route.pid)
+                        .map(|m| m.name.clone())
+                }
+            },
+            |route| route.meta.order,
+            |route, children| {
+                route.children = Some(children);
+            },
+        );
+
+        Ok(UserRoute { 
+            routes, 
+            home: "home".to_string() 
+        })
+    }
+
+    async fn verify_user_basic(
+        &self,
+        db: &Arc<DatabaseConnection>,
+        identifier: &str,
+        password: &str,
+        domain: &str,
+    ) -> Result<UserWithDomainAndOrgOutput, AuthError> {
+        let user = select_user_with_domain_and_org_info!(SysUser::find())
+            .filter(SysUserColumn::Username.eq(identifier))
+            .filter(SysDomainColumn::Code.eq(domain))
+            .join(JoinType::InnerJoin, SysUserRelation::SysDomain.def())
+            .into_model::<UserWithDomainAndOrgOutput>()
+            .one(db.as_ref())
+            .await
+            .map_err(|e| AuthError::DatabaseOperationFailed(e.to_string()))?
+            .ok_or_else(|| AuthError::UserNotFound)?;
+
+        // 验证密码
+        if !SecureUtil::verify_password(password.as_bytes(), &user.password)
+            .map_err(|_| AuthError::AuthenticationFailed("Password verification failed".to_string()))?
+        {
+            return Err(AuthError::InvalidCredentials);
+        }
+
+        Ok(user)
+    }
+
+    async fn get_user_roles(
+        &self,
+        user_id: &str,
+        db: &Arc<DatabaseConnection>,
+    ) -> Result<Vec<String>, AuthError> {
+        SysRole::find()
+            .join(JoinType::InnerJoin, SysRoleRelation::SysUserRole.def())
+            .join(JoinType::InnerJoin, SysUserRoleRelation::SysUser.def())
+            .filter(SysUserColumn::Id.eq(user_id))
+            .select_only()
+            .column(SysRoleColumn::Code)
+            .into_tuple()
+            .all(db.as_ref())
+            .await
+            .map_err(|e| AuthError::DatabaseOperationFailed(e.to_string()))
+    }
+}
+
 /// 发送认证事件
 /// 
-/// 将认证事件发送到事件通道
+/// 将认证事件发送到事件通道，用于异步处理
+/// 
+/// # 参数
+/// * `sender` - 事件发送器
+/// * `auth_event` - 认证事件
+/// 
+/// # 返回
+/// * `Result<(), AuthError>` - 发送结果
 #[instrument(skip(sender, auth_event))]
 async fn send_auth_event(
     sender: mpsc::UnboundedSender<Box<dyn std::any::Any + Send>>,
@@ -462,7 +644,23 @@ async fn send_auth_event(
 
 /// 生成认证输出
 /// 
-/// 根据用户信息生成JWT令牌和刷新令牌
+/// 根据用户信息和角色生成认证输出，包括：
+/// - 访问令牌
+/// - 刷新令牌
+/// - 用户信息
+/// - 角色信息
+/// 
+/// # 参数
+/// * `user_id` - 用户ID
+/// * `username` - 用户名
+/// * `role_codes` - 角色代码列表
+/// * `domain_code` - 域代码
+/// * `organization_name` - 组织名称（可选）
+/// * `audience` - 认证受众
+/// 
+/// # 返回
+/// * `Result<AuthOutput, AuthError>` - 认证输出或错误
+#[instrument(skip(role_codes))]
 pub async fn generate_auth_output(
     user_id: String,
     username: String,
@@ -470,7 +668,7 @@ pub async fn generate_auth_output(
     domain_code: String,
     organization_name: Option<String>,
     audience: Audience,
-) -> Result<AuthOutput, JwtError> {
+) -> Result<AuthOutput, AuthError> {
     let claims = Claims::new(
         user_id,
         audience.as_str().to_string(),
@@ -480,18 +678,28 @@ pub async fn generate_auth_output(
         organization_name,
     );
 
-    let token = JwtUtils::generate_token(&claims).await?;
+    let token = JwtUtils::generate_token(&claims)
+        .await
+        .map_err(|e| AuthError::JwtGenerationFailed(e.to_string()))?;
+
+    let refresh_token = JwtUtils::generate_token(&claims)
+        .await
+        .map_err(|e| AuthError::JwtGenerationFailed(e.to_string()))?;
 
     Ok(AuthOutput {
         token,
-        refresh_token: Ulid::new().to_string(),
+        refresh_token,
     })
 }
 
-/// 认证登录事件监听器
+/// 登录事件监听器
 /// 
-/// 监听并处理认证登录事件
-#[instrument(skip(rx))]
+/// 监听并处理登录相关事件，包括：
+/// - 登录日志记录
+/// - 访问令牌管理
+/// 
+/// # 参数
+/// * `rx` - 事件接收器
 pub async fn auth_login_listener(
     mut rx: tokio::sync::mpsc::UnboundedReceiver<Box<dyn Any + Send>>,
 ) {
@@ -506,8 +714,16 @@ pub async fn auth_login_listener(
 
 /// 处理认证事件
 /// 
-/// 处理具体的认证事件，如登录事件
-#[instrument(skip(auth_event), fields(user_id = %auth_event.user_id, username = %auth_event.username))]
+/// 处理具体的认证事件，包括：
+/// - 登录日志记录
+/// - 访问令牌管理
+/// 
+/// # 参数
+/// * `auth_event` - 认证事件
+/// 
+/// # 返回
+/// * `Result<(), AuthError>` - 处理结果
+#[instrument(skip(auth_event))]
 async fn handle_auth_event(auth_event: &AuthEvent) -> Result<(), AuthError> {
     AuthEventHandler::handle_login(AuthEvent {
         user_id: auth_event.user_id.clone(),
@@ -526,10 +742,14 @@ async fn handle_auth_event(auth_event: &AuthEvent) -> Result<(), AuthError> {
     .map_err(|e| AuthError::LoginHandlerError(format!("{:?}", e)))
 }
 
-/// JWT令牌创建监听器
+/// JWT创建事件监听器
 /// 
-/// 监听并记录JWT令牌的创建
-#[instrument(skip(rx))]
+/// 监听并处理JWT创建事件，用于：
+/// - 令牌创建记录
+/// - 令牌状态管理
+/// 
+/// # 参数
+/// * `rx` - 事件接收器
 pub async fn jwt_created_listener(mut rx: tokio::sync::mpsc::UnboundedReceiver<String>) {
     while let Some(jwt) = rx.recv().await {
         project_info!("JWT created: {}", jwt);

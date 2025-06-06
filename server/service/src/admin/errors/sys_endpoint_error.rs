@@ -1,3 +1,48 @@
+/*! 端点错误模块
+ * 
+ * 该模块定义了与API端点（Endpoint）相关的错误类型。
+ * 包括端点的创建、修改、删除等操作相关的错误。
+ * 
+ * 错误类型
+ * --------
+ * EndpointError 定义了端点相关的所有错误情况，包括：
+ * - 端点不存在
+ * - 多个端点不存在
+ * - 数据库错误
+ * - 认证错误
+ * - 授权错误
+ * - 资源不存在
+ * - 验证错误
+ * - 内部错误
+ * 
+ * 错误代码
+ * --------
+ * - 404: 端点不存在
+ * - 404: 多个端点不存在
+ * - 500: 数据库错误
+ * - 401: 认证错误
+ * - 403: 授权错误
+ * - 404: 资源不存在
+ * - 400: 验证错误
+ * - 500: 内部错误
+ * 
+ * 使用示例
+ * --------
+ * /* 创建端点不存在错误
+ *  * let error = EndpointError::EndpointNotFound("/api/users".to_string());
+ *  */
+ * 
+ * /* 处理多个端点不存在错误
+ *  * let error = EndpointError::EndpointsNotFound(vec![1, 2, 3]);
+ *  */
+ * 
+ * /* 处理数据库错误
+ *  * let db_error = EndpointError::DatabaseError(Box::new(
+ *  *     std::io::Error::new(std::io::ErrorKind::Other, "Failed to save endpoint")
+ *  * ));
+ *  */
+ */
+
 use server_core::web::error::AppError;
 use thiserror::Error;
 

@@ -1,8 +1,51 @@
+/*! 角色错误模块
+ * 
+ * 该模块定义了与系统角色相关的错误类型。
+ * 包括角色的创建、修改、删除等操作相关的错误。
+ * 
+ * 错误类型
+ * --------
+ * RoleError 定义了角色相关的所有错误情况，包括：
+ * - 角色不存在
+ * - 角色已存在
+ * - 角色被禁用
+ * - 内置角色不可修改
+ * - 角色代码重复
+ * - 角色名称重复
+ * - 角色操作失败
+ * - 数据库操作失败
+ * 
+ * 错误代码
+ * --------
+ * - 5001: 角色不存在
+ * - 5002: 角色已存在
+ * - 5003: 角色被禁用
+ * - 5004: 内置角色不可修改
+ * - 5005: 角色代码重复
+ * - 5006: 角色名称重复
+ * - 5007: 角色操作失败
+ * - 5008: 数据库操作失败
+ * 
+ * 使用示例
+ * --------
+ * /* 创建角色不存在错误
+ *  * let error = RoleError::RoleNotFound;
+ *  */
+ * 
+ * /* 处理重复角色代码错误
+ *  * let error = RoleError::DuplicateCode;
+ *  */
+ * 
+ * /* 处理数据库错误
+ *  * let db_error = RoleError::database_error("Failed to save role".to_string());
+ *  */
+ */
+
 #![allow(unused_imports, unused_variables)]
 
 use server_core::web::error::{ApiError, AppError};
 use thiserror::Error;
-use crate::admin::errors::{CommonError, impl_from_common_error};
+use crate::admin::errors::{CommonError, impl_from_common_error, impl_from_db_error};
 use sea_orm::DbErr;
 
 #[derive(Debug, Error)]

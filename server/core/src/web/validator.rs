@@ -1,3 +1,63 @@
+/// 输入验证模块
+/// 
+/// 该模块提供了请求数据验证的功能，包括：
+/// - JSON和表单数据的验证：支持JSON和表单格式的请求数据验证
+/// - 自定义验证规则：通过宏和trait提供灵活的验证规则定义
+/// - 验证错误处理：统一的错误处理和响应格式
+/// - 验证结果响应：标准化的验证结果响应格式
+/// 
+/// # 主要组件
+/// 
+/// ## ValidationError
+/// 验证错误类型，包含多种错误情况：
+/// - JSON数据格式错误
+/// - 表单数据格式错误
+/// - 数据验证错误
+/// - 数据缺失错误
+/// 
+/// ## ValidatedForm
+/// 已验证的表单数据包装器，用于存储验证通过的数据。
+/// 
+/// ## ValidateInput
+/// 输入验证trait，提供通用的验证方法：
+/// - validate_input：验证输入数据
+/// - validate_with_errors：验证并返回错误信息
+/// 
+/// # 验证宏
+/// 
+/// ## validate_required
+/// 用于快速定义必填字段的验证规则：
+/// - 支持字符串长度验证
+/// - 支持必填验证
+/// - 支持自定义错误消息
+/// 
+/// ## validate_optional
+/// 用于快速定义可选字段的验证规则：
+/// - 支持字符串长度验证
+/// - 支持自定义错误消息
+/// 
+/// # 使用示例
+/// 
+/// 
+/// // 定义验证结构体
+/// #[derive(Debug, Validate, Deserialize)]
+/// struct UserInput {
+///     #[validate(length(min = 3, max = 50))]
+///     username: String,
+///     #[validate(email)]
+///     email: String,
+/// }
+/// 
+/// // 使用验证
+/// async fn create_user(
+///     ValidatedForm(input): ValidatedForm<UserInput>,
+/// ) -> Result<(), ValidationError> {
+///     input.validate_input().await?;
+///     // 处理验证通过的数据
+///     Ok(())
+/// }
+/// 
+
 use async_trait::async_trait;
 use axum::{
     extract::{rejection::JsonRejection, FromRequest, Request},
@@ -13,25 +73,57 @@ use std::future::Future;
 
 use crate::web::res::Res;
 
+/// 验证错误类型枚举
+/// 
+/// 定义了验证过程中可能出现的各种错误类型：
+/// - JsonError：JSON数据格式错误，包含具体的错误信息
+/// - FormError：表单数据格式错误
+/// - Validation：数据验证错误，包含详细的字段验证错误信息
+/// - DataMissing：请求数据缺失错误
 #[derive(Debug, Error)]
 pub enum ValidationError {
+    /// JSON数据格式错误
     #[error("Invalid JSON data: {0}")]
     JsonError(String),
 
+    /// 表单数据格式错误
     #[error("Invalid form data")]
     FormError,
 
+    /// 数据验证错误
     #[error("Validation error: {0}")]
     Validation(#[from] ValidationErrors),
 
+    /// 数据缺失错误
     #[error("Data is missing")]
     DataMissing,
 }
 
+/// 已验证的表单数据包装器
+/// 
+/// 用于存储验证通过的数据，确保数据已经通过了所有验证规则。
+/// 通过FromRequest trait实现，支持从HTTP请求中提取和验证数据。
+/// 
+/// # 类型参数
+/// 
+/// * `T`: 实现了DeserializeOwned和Validate trait的类型
 #[derive(Debug, Clone)]
 pub struct ValidatedForm<T>(pub T);
 
 /// 验证宏，用于快速定义必填字段的验证规则
+/// 
+/// 提供了三种模式：
+/// 1. 带长度限制的字符串字段
+/// 2. 必填字符串字段
+/// 3. 必填自定义类型字段
+/// 
+/// # 参数
+/// 
+/// * `$field`: 字段名
+/// * `$min`: 最小长度（可选）
+/// * `$max`: 最大长度（可选）
+/// * `$message`: 错误消息
+/// * `$ty`: 字段类型（可选）
 #[macro_export]
 macro_rules! validate_required {
     ($field:ident, $min:expr, $max:expr, $message:expr) => {
@@ -56,6 +148,17 @@ macro_rules! validate_required {
 }
 
 /// 验证宏，用于快速定义可选字段的验证规则
+/// 
+/// 提供了两种模式：
+/// 1. 带长度限制的可选字符串字段
+/// 2. 可选自定义类型字段
+/// 
+/// # 参数
+/// 
+/// * `$field`: 字段名
+/// * `$max`: 最大长度（可选）
+/// * `$message`: 错误消息（可选）
+/// * `$ty`: 字段类型（可选）
 #[macro_export]
 macro_rules! validate_optional {
     ($field:ident, $max:expr, $message:expr) => {
@@ -67,15 +170,37 @@ macro_rules! validate_optional {
     };
 }
 
-/// 验证 trait，用于定义通用的验证方法
+/// 输入验证 trait，用于定义通用的验证方法
+/// 
+/// 为实现了Validate trait的类型提供额外的验证功能：
+/// - validate_input：验证输入数据并返回Result
+/// - validate_with_errors：验证并返回详细的错误信息
+/// 
+/// # 类型约束
+/// 
+/// 实现此trait的类型必须：
+/// - 实现Validate trait
+/// - 实现Send + Sync trait
 #[async_trait]
 pub trait ValidateInput: Validate + Send + Sync {
     /// 验证输入数据
+    /// 
+    /// 使用Validate trait的validate方法验证数据，
+    /// 并将验证错误转换为ValidationError。
+    /// 
+    /// # 返回
+    /// * `Result<(), ValidationError>` - 验证成功返回Ok(())，失败返回错误
     async fn validate_input(&self) -> Result<(), ValidationError> {
         Validate::validate(self).map_err(ValidationError::from)
     }
 
     /// 验证并返回错误信息
+    /// 
+    /// 验证数据并返回详细的错误信息列表。
+    /// 错误信息包含每个字段的具体验证错误。
+    /// 
+    /// # 返回
+    /// * `Result<(), Vec<String>>` - 验证成功返回Ok(())，失败返回错误信息列表
     async fn validate_with_errors(&self) -> Result<(), Vec<String>> {
         match Validate::validate(self) {
             Ok(_) => Ok(()),
@@ -103,6 +228,15 @@ pub trait ValidateInput: Validate + Send + Sync {
 #[async_trait]
 impl<T: Validate + Send + Sync> ValidateInput for T {}
 
+/// 实现从请求中提取并验证表单数据的功能
+/// 
+/// 支持从HTTP请求中提取JSON或表单数据，并进行验证。
+/// 根据Content-Type头自动选择数据提取方式。
+/// 
+/// # 类型参数
+/// 
+/// * `S`: 应用状态类型
+/// * `T`: 实现了DeserializeOwned和Validate trait的类型
 impl<S, T> FromRequest<S> for ValidatedForm<T>
 where
     T: DeserializeOwned + Validate + Send + Sync + 'static,
@@ -112,6 +246,18 @@ where
 {
     type Rejection = ValidationError;
 
+    /// 从请求中提取并验证数据
+    /// 
+    /// 根据Content-Type头选择数据提取方式：
+    /// - application/json：提取JSON数据
+    /// - application/x-www-form-urlencoded：提取表单数据
+    /// 
+    /// # 参数
+    /// * `req` - HTTP请求
+    /// * `state` - 应用状态
+    /// 
+    /// # 返回
+    /// * `Result<Self, Self::Rejection>` - 成功返回验证后的数据，失败返回错误
     fn from_request(
         req: Request,
         state: &S,
@@ -144,7 +290,21 @@ where
     }
 }
 
+/// 实现验证错误的响应转换
+/// 
+/// 将ValidationError转换为标准化的HTTP响应。
+/// 根据错误类型生成不同的错误消息和状态码。
 impl IntoResponse for ValidationError {
+    /// 将验证错误转换为HTTP响应
+    /// 
+    /// 根据错误类型生成不同的响应：
+    /// - JsonError：返回400状态码和JSON错误信息
+    /// - FormError：返回400状态码和表单错误信息
+    /// - Validation：返回400状态码和详细的字段验证错误
+    /// - DataMissing：返回400状态码和数据缺失错误信息
+    /// 
+    /// # 返回
+    /// * `Response` - HTTP响应
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
             ValidationError::JsonError(msg) => (StatusCode::BAD_REQUEST, msg),

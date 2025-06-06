@@ -1,3 +1,61 @@
+/*! 授权错误模块
+ * 
+ * 该模块定义了与用户授权相关的错误类型。
+ * 包括域、角色、权限、路由等资源的访问控制相关的错误。
+ * 
+ * 错误类型
+ * --------
+ * AuthorizationError 定义了授权相关的所有错误情况，包括：
+ * - 域不存在
+ * - 角色不存在
+ * - 权限不存在
+ * - 路由不存在
+ * - 用户不存在
+ * - 权限被拒绝
+ * - 数据库错误
+ * - 认证错误
+ * - 授权错误
+ * - 资源不存在
+ * - 验证错误
+ * - 内部错误
+ * 
+ * 错误代码
+ * --------
+ * - 3001: 域不存在
+ * - 3002: 角色不存在
+ * - 3003: 权限不存在
+ * - 3004: 路由不存在
+ * - 3005: 用户不存在
+ * - 3006: 权限被拒绝
+ * - 3007: 数据库操作失败
+ * - 3008: 认证失败
+ * - 3009: 授权失败
+ * - 3010: 资源不存在
+ * - 3011: 验证失败
+ * - 3012: 内部错误
+ * 
+ * 使用示例
+ * --------
+ * /* 创建域不存在错误
+ *  * let error = AuthorizationError::domain_not_found(
+ *  *     "example.com".to_string(),
+ *  *     "DOMAIN_001".to_string()
+ *  * );
+ *  */
+ * 
+ * /* 创建权限被拒绝错误
+ *  * let error = AuthorizationError::permission_denied(
+ *  *     "User does not have required permissions".to_string()
+ *  * );
+ *  */
+ * 
+ * /* 处理数据库错误
+ *  * let db_error = AuthorizationError::database_error(
+ *  *     "Failed to load permissions".to_string()
+ *  * );
+ *  */
+ */
+
 #![allow(unused_imports)]
 
 use server_core::web::error::{ApiError, AppError};

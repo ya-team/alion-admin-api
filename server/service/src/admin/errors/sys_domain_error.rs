@@ -1,3 +1,50 @@
+/*! 域错误模块
+ * 
+ * 该模块定义了与系统域（Domain）相关的错误类型。
+ * 包括域的创建、修改、删除等操作相关的错误。
+ * 
+ * 错误类型
+ * --------
+ * DomainError 定义了域相关的所有错误情况，包括：
+ * - 域不存在
+ * - 无效的域代码
+ * - 域已存在
+ * - 域已禁用
+ * - 内置域不可修改
+ * - 域代码重复
+ * - 域名称重复
+ * - 域操作失败
+ * - 数据库操作失败
+ * 
+ * 错误代码
+ * --------
+ * - 3001: 域不存在
+ * - 3002: 无效的域代码
+ * - 3003: 域已存在
+ * - 3004: 域已禁用
+ * - 3005: 内置域不可修改
+ * - 3006: 域代码重复
+ * - 3007: 域名称重复
+ * - 3008: 域操作失败
+ * - 3009: 数据库操作失败
+ * 
+ * 使用示例
+ * --------
+ * /* 创建域不存在错误
+ *  * let error = DomainError::DomainNotFound;
+ *  */
+ * 
+ * /* 处理重复域代码错误
+ *  * let error = DomainError::DuplicateCode;
+ *  */
+ * 
+ * /* 处理数据库错误
+ *  * let db_error = DomainError::database_error(
+ *  *     "Failed to save domain".to_string()
+ *  * );
+ *  */
+ */
+
 #![allow(unused_imports)]
 
 use server_core::web::error::{ApiError, AppError};

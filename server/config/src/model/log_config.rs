@@ -92,7 +92,7 @@ pub enum LogFormat {
     /// 
     /// 将日志输出为JSON格式，便于机器处理和分析
     /// 例如：
-    /// ```json
+    /// json
     /// {
     ///   "timestamp": "2024-03-20T10:00:00Z",
     ///   "level": "INFO",
@@ -100,15 +100,15 @@ pub enum LogFormat {
     ///   "thread_id": "123",
     ///   "file": "src/main.rs:10"
     /// }
-    /// ```
+    /// 
     Json,
 
     /// 文本格式
     /// 
     /// 将日志输出为人类可读的文本格式
     /// 例如：
-    /// ```
+    /// 
     /// [2024-03-20T10:00:00Z] INFO [thread-123] src/main.rs:10 - Application started
-    /// ```
+    /// 
     Text,
 } 

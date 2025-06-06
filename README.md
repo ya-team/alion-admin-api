@@ -150,6 +150,10 @@ alion-admin/
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启一个 Pull Request
 
+## 联系我们
+
+1. 微信: `837633677` (备注: `Alion Admin`) 添加群管理员微信进群
+
 ## 许可证
 
 本项目采用 Apache License 2.0 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情

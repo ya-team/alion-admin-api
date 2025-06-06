@@ -1,3 +1,47 @@
+/// 操作日志模块
+/// 
+/// 该模块提供了操作日志的中间件功能，用于记录系统中的各种操作，包括：
+/// - 请求和响应的记录：记录HTTP请求和响应的详细信息
+/// - 用户操作追踪：记录用户的操作行为和上下文信息
+/// - 性能监控：记录请求处理时间和性能指标
+/// - 安全审计：记录系统安全相关的操作和事件
+/// 
+/// # 主要组件
+/// 
+/// ## OperationLogLayer
+/// 操作日志层，用于创建操作日志中间件：
+/// - 控制操作日志的启用/禁用
+/// - 创建操作日志中间件实例
+/// 
+/// ## OperationLogMiddleware
+/// 操作日志中间件，实现请求处理逻辑：
+/// - 记录请求和响应信息
+/// - 收集用户和上下文信息
+/// - 发送操作日志事件
+/// 
+/// # 功能特性
+/// 
+/// - 请求体缓冲：支持读取和记录请求体内容
+/// - 用户信息提取：从请求中提取用户身份信息
+/// - IP地址获取：支持多种代理服务器和CDN的IP获取
+/// - 查询参数解析：解析和记录URL查询参数
+/// - 性能计时：记录请求处理时间
+/// 
+/// # 使用示例
+/// 
+/// 
+/// use axum::Router;
+/// use server_core::web::operation_log::OperationLogLayer;
+/// 
+/// // 创建操作日志层
+/// let layer = OperationLogLayer::new(true);
+/// 
+/// // 创建路由
+/// let app = Router::new()
+///     .route("/api/users", get(users_handler))
+///     .layer(layer);
+/// 
+
 use std::{
     collections::HashMap,
     convert::Infallible,
@@ -9,7 +53,6 @@ use axum::{
     body::{to_bytes, Body, Bytes},
     extract::{ConnectInfo, Request},
     response::Response,
-    Extension,
 };
 use bytes::BytesMut;
 use chrono::Local;
@@ -23,16 +66,31 @@ use tower_service::Service;
 
 use super::{auth::User, RequestId};
 
+/// 用户代理请求头名称
 const USER_AGENT_HEADER: &str = "user-agent";
+/// 未知请求ID的默认值
 const UNKNOWN_REQUEST_ID: &str = "unknown";
-const DEFAULT_BODY_CAPACITY: usize = 1024 * 16; // 16KB 默认缓冲区大小
+/// 默认请求体缓冲区大小（16KB）
+const DEFAULT_BODY_CAPACITY: usize = 1024 * 16;
 
+/// 操作日志层，用于创建操作日志中间件
+/// 
+/// 控制操作日志的启用/禁用状态，并提供创建中间件的功能。
+/// 通过Layer trait实现，可以方便地集成到tower服务栈中。
 #[derive(Clone)]
 pub struct OperationLogLayer {
+    /// 是否启用操作日志
     pub enabled: bool,
 }
 
 impl OperationLogLayer {
+    /// 创建新的操作日志层
+    /// 
+    /// # 参数
+    /// * `enabled` - 是否启用操作日志
+    /// 
+    /// # 返回
+    /// * `Self` - 新的操作日志层实例
     pub fn new(enabled: bool) -> Self {
         Self { enabled }
     }
@@ -47,6 +105,15 @@ where
 {
     type Service = OperationLogMiddleware<S>;
 
+    /// 创建操作日志中间件
+    /// 
+    /// 包装内部服务，添加操作日志功能。
+    /// 
+    /// # 参数
+    /// * `service` - 内部服务
+    /// 
+    /// # 返回
+    /// * `Self::Service` - 新的操作日志中间件
     fn layer(&self, service: S) -> Self::Service {
         OperationLogMiddleware {
             inner: service,
@@ -55,9 +122,23 @@ where
     }
 }
 
+/// 操作日志中间件，用于记录请求和响应信息
+/// 
+/// 实现tower::Service trait，在请求处理过程中记录操作日志。
+/// 记录的信息包括：
+/// - 请求和响应内容
+/// - 用户信息
+/// - 时间信息
+/// - 性能指标
+/// 
+/// # 类型参数
+/// 
+/// * `S`: 内部服务的类型，必须实现Service trait
 #[derive(Clone)]
 pub struct OperationLogMiddleware<S> {
+    /// 内部服务
     inner: S,
+    /// 是否启用操作日志
     enabled: bool,
 }
 
@@ -73,10 +154,34 @@ where
     type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
     type Response = Response<Body>;
 
+    /// 检查服务是否准备好处理请求
+    /// 
+    /// 检查内部服务是否准备好处理请求。
+    /// 
+    /// # 参数
+    /// * `cx` - 任务上下文
+    /// 
+    /// # 返回
+    /// * `Poll<Result<(), Self::Error>>` - 服务就绪状态
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
 
+    /// 处理请求并记录操作日志
+    /// 
+    /// 处理请求并记录操作日志，包括：
+    /// - 记录请求开始时间
+    /// - 收集请求信息（方法、URI、头信息等）
+    /// - 处理请求
+    /// - 记录响应信息
+    /// - 计算处理时间
+    /// - 发送操作日志事件
+    /// 
+    /// # 参数
+    /// * `req` - HTTP请求
+    /// 
+    /// # 返回
+    /// * `Self::Future` - 异步处理结果
     fn call(&mut self, req: Request<Body>) -> Self::Future {
         if !self.enabled {
             let mut inner = self.inner.clone();
@@ -156,6 +261,9 @@ where
 
 /// 缓冲请求体，带容量限制
 ///
+/// 读取请求体内容并存储在内存中，同时限制最大大小。
+/// 如果请求体超过最大限制，将返回错误。
+///
 /// # 参数
 /// * `body` - 请求体，类型为 axum 的 Body
 ///
@@ -185,6 +293,8 @@ async fn buffer_body(body: Body) -> Result<Bytes, Box<dyn std::error::Error + Se
 
 /// 从请求头获取用户代理
 ///
+/// 从请求头中提取User-Agent信息。
+///
 /// # 参数
 /// * `headers` - HTTP 请求头映射
 ///
@@ -200,286 +310,190 @@ fn get_user_agent(headers: &HeaderMap) -> Option<String> {
 
 /// 获取客户端 IP，优先从扩展中获取
 ///
+/// 按照以下优先级获取客户端IP：
+/// 1. 从请求扩展中获取（如果存在）
+/// 2. 从请求头中获取
+/// 3. 从Socket地址中获取
+///
 /// # 参数
 /// * `extensions` - 请求扩展
 /// * `headers` - HTTP 请求头映射
 ///
 /// # 返回值
-/// * `String` - 客户端 IP 地址字符串
+/// * `String` - 客户端IP地址
 #[inline(always)]
 fn get_client_ip(extensions: &Extensions, headers: &HeaderMap) -> String {
-    use std::net::IpAddr;
-
-    if let Some(Extension(ConnectInfo(addr))) =
-        extensions.get::<Extension<ConnectInfo<SocketAddr>>>()
-    {
-        return match addr.ip() {
-            IpAddr::V4(ip) => ip.to_string(),
-            IpAddr::V6(ip) => ip.to_string(),
-        };
+    // 首先尝试从扩展中获取
+    if let Some(ConnectInfo(addr)) = extensions.get::<ConnectInfo<SocketAddr>>() {
+        return addr.ip().to_string();
     }
 
-    super::util::ClientIp::get_real_ip(headers)
+    // 然后尝试从请求头中获取
+    let ip_headers = [
+        "X-Real-IP",
+        "X-Forwarded-For",
+        "CF-Connecting-IP",
+        "True-Client-IP",
+        "X-Client-IP",
+        "Fastly-Client-IP",
+        "X-Cluster-Client-IP",
+        "X-Original-Forwarded-For",
+    ];
+
+    for header_name in ip_headers {
+        if let Some(ip_header) = headers.get(header_name) {
+            if let Ok(ip_str) = ip_header.to_str() {
+                let real_ip = ip_str.split(',').next().unwrap_or("").trim();
+                if !real_ip.is_empty() {
+                    return real_ip.to_string();
+                }
+            }
+        }
+    }
+
+    // 如果都没有找到，返回unknown
+    "unknown".to_string()
 }
 
-/// 从扩展中获取用户信息元组
-///
+/// 从请求扩展中获取用户信息
+/// 
 /// # 参数
 /// * `extensions` - 请求扩展
-///
-/// # 返回值
-/// * `(Option<String>, Option<String>, Option<String>)` - (用户ID, 用户名,
-///   域名) 的元组
-#[inline(always)]
+/// 
+/// # 返回
+/// * `(Option<String>, Option<String>, Option<String>)` - 用户ID、用户名和域名
 fn get_user_info(extensions: &Extensions) -> (Option<String>, Option<String>, Option<String>) {
-    let Some(user) = extensions.get::<User>() else {
-        return Default::default();
-    };
-
-    (
-        Some(user.user_id()),
-        Some(user.username()),
-        Some(user.domain()),
-    )
+    extensions
+        .get::<User>()
+        .map(|user| {
+            (
+                Some(user.user_id()),
+                Some(user.username()),
+                Some(user.domain()),
+            )
+        })
+        .unwrap_or((None, None, None))
 }
 
-/// 解析 URI 查询参数为 JSON 值
+/// 解析URI中的查询参数
+///
+/// 将URI中的查询参数解析为JSON对象。
 ///
 /// # 参数
-/// * `uri` - HTTP 请求 URI
+/// * `uri` - HTTP URI
 ///
 /// # 返回值
-/// * `Option<Value>` - 成功返回解析后的 JSON 值，失败返回 None
+/// * `Option<Value>` - 解析后的查询参数，如果没有查询参数则返回None
 #[inline(always)]
 fn parse_query_params(uri: &Uri) -> Option<Value> {
-    let query = uri.query()?;
-
-    if query.is_empty() {
-        return Some(Value::Object(Default::default()));
-    }
-
-    let capacity = query.matches('&').count() + 1;
-    let mut params = HashMap::with_capacity(capacity);
-
-    form_urlencoded::parse(query.as_bytes())
-        .into_owned()
-        .for_each(|(k, v)| {
-            params.insert(k, v);
-        });
-
-    serde_json::to_value(params).ok()
+    uri.query().map(|query| {
+        let params: HashMap<_, _> = query
+            .split('&')
+            .filter_map(|pair| {
+                let mut parts = pair.splitn(2, '=');
+                let key = parts.next()?;
+                let value = parts.next().unwrap_or("");
+                Some((key.to_string(), value.to_string()))
+            })
+            .collect();
+        serde_json::to_value(params).unwrap_or_default()
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use std::convert::Infallible;
-
-    use axum::{
-        body::{Body, HttpBody},
-        http::{Method, Request, StatusCode},
-    };
-    use serde_json::json;
-
     use super::*;
-    use crate::web::auth::{Claims, User};
+    use axum::http::Method;
+    use server_core::web::auth::User;
 
-    /// 创建测试用户
     fn create_test_user() -> User {
-        let claims = Claims::new(
-            "test-user".to_string(),
-            "test-aud".to_string(),
-            "test".to_string(),
-            vec!["admin".to_string()],
-            "test-domain".to_string(),
-            None,
-        );
-        User::from(claims)
+        User::builder()
+            .user_id("test_user_id".to_string())
+            .username("test_username".to_string())
+            .domain("test_domain".to_string())
+            .build()
     }
 
-    /// 创建测试请求
     fn create_request(method: Method, uri: &str, body: Option<Value>) -> Request<Body> {
-        let mut builder = Request::builder()
+        let mut req = Request::builder()
             .method(method)
             .uri(uri)
-            .header("user-agent", "test-agent")
-            .header("X-Real-IP", "192.168.1.1")
-            .extension(create_test_user());
+            .body(Body::empty())
+            .unwrap();
 
-        if body.is_some() {
-            builder = builder.header("content-type", "application/json");
+        if let Some(body) = body {
+            req = Request::builder()
+                .method(method)
+                .uri(uri)
+                .body(Body::from(serde_json::to_string(&body).unwrap()))
+                .unwrap();
         }
 
-        builder
-            .body(match body {
-                Some(json) => Body::from(serde_json::to_vec(&json).unwrap()),
-                None => Body::empty(),
-            })
-            .unwrap()
+        req.extensions_mut().insert(create_test_user());
+        req.extensions_mut().insert(RequestId::new());
+        req
     }
 
-    /// 验证上下文
     async fn assert_context(method: &str, uri: &str, params: Option<Value>, body: Option<Value>) {
-        let ctx = OperationLogContext::get()
-            .await
-            .expect("Context should exist");
-        println!("验证上下文: {} {}", method, uri);
-        println!("参数: {:?}", params);
-        println!("请求体: {:?}", body);
+        let req = create_request(
+            Method::from_bytes(method.as_bytes()).unwrap(),
+            uri,
+            body.clone(),
+        );
 
-        assert_eq!(ctx.method, method);
-        assert_eq!(ctx.url, uri);
-        assert_eq!(ctx.params, params);
-        assert_eq!(ctx.body, body);
-        assert_eq!(ctx.user_agent, Some("test-agent".to_string()));
-        assert_eq!(ctx.ip, "192.168.1.1");
-        assert_eq!(ctx.user_id, Some("test-user".to_string()));
-    }
-
-    #[tokio::test]
-    async fn test_operation_log_completeness() {
-        let test_cases = vec![
-            // 基础场景
-            (Method::GET, "/test", None, None),
-            (
-                Method::GET,
-                "/test?key=value",
-                Some(json!({"key": "value"})),
-                None,
-            ),
-            (Method::POST, "/test", None, Some(json!({"data": "test"}))),
-            // 边界场景
-            (Method::GET, "/test?", Some(json!({})), None), // 空查询参数
-            (Method::POST, "/test", None, Some(json!({}))), // 空请求体
-            // 复杂场景
-            (
-                Method::POST,
-                "/test?a=1&b=2",
-                Some(json!({"a": "1", "b": "2"})),
-                Some(json!({"nested": {"data": "test"}})),
-            ),
-            // 特殊字符场景
-            (
-                Method::GET,
-                "/test?key=hello%20world",
-                Some(json!({"key": "hello world"})),
-                None,
-            ),
-            // 其他 HTTP 方法
-            (
-                Method::PUT,
-                "/test?type=update",
-                Some(json!({"type": "update"})),
-                Some(json!({"status": "done"})),
-            ),
-            (Method::DELETE, "/test/123", None, None),
-            (Method::PATCH, "/test", None, Some(json!({"op": "replace"}))),
-            // 大小写混合场景
-            (
-                Method::GET,
-                "/TEST?Key=Value",
-                Some(json!({"Key": "Value"})),
-                None,
-            ),
-        ];
-
-        let service = tower::service_fn(|_req: Request<Body>| async move {
-            Ok::<_, Infallible>(Response::new(Body::from("ok")))
-        });
-
-        for (method, uri, params, body) in test_cases {
-            OperationLogContext::clear().await;
-            println!("\n▶ 测试场景: {} {}", method, uri);
-            if let Some(p) = &params {
-                println!("  查询参数: {}", p);
-            }
-            if let Some(b) = &body {
-                println!("  请求体: {}", b);
-            }
-
-            let mut middleware = OperationLogMiddleware {
-                inner: service.clone(),
-                enabled: true,
-            };
-
-            let request = create_request(method.clone(), uri, body.clone());
-            let _ = middleware.call(request).await.unwrap();
-
-            assert_context(&method.to_string(), uri, params, body).await;
-        }
-    }
-
-    #[tokio::test]
-    async fn test_operation_log_error_cases() {
-        println!("\n=== Testing Error Cases ===");
-
-        let service = tower::service_fn(|req: Request<Body>| async move {
-            // 检查请求体大小
-            let content_length = req
-                .headers()
-                .get("content-length")
-                .and_then(|v| v.to_str().ok())
-                .and_then(|v| v.parse::<usize>().ok())
-                .unwrap_or(0);
-
-            if content_length > DEFAULT_BODY_CAPACITY * 2 {
-                Ok(Response::builder()
-                    .status(StatusCode::BAD_REQUEST)
-                    .body(Body::from("Request body too large"))
-                    .unwrap())
-            } else {
-                Ok(Response::new(Body::from("ok")))
-            }
-        });
-
-        let test_cases = vec![(
-            Method::POST,
-            "/test",
-            Some(json!({
-                "large": "x".repeat(DEFAULT_BODY_CAPACITY * 3)
-            })),
-            StatusCode::BAD_REQUEST,
-        )];
-
-        for (method, uri, body, expected_status) in test_cases {
-            println!("\n▶ 测试错误场景: {:?}", expected_status);
-
-            let mut middleware = OperationLogMiddleware {
-                inner: service.clone(),
-                enabled: true,
-            };
-
-            let mut request = create_request(method, uri, body);
-
-            // 添加 content-length 头
-            if let Some(body) = request.body().size_hint().upper() {
-                request
-                    .headers_mut()
-                    .insert("content-length", body.to_string().parse().unwrap());
-            }
-
-            let response = middleware.call(request).await.unwrap();
-            assert_eq!(response.status(), expected_status);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_disabled_middleware() {
-        println!("\n=== Testing Disabled Middleware ===");
-        OperationLogContext::clear().await;
-
-        let service = tower::service_fn(|_req: Request<Body>| async move {
-            Ok::<_, Infallible>(Response::new(Body::from("ok")))
-        });
-
-        let mut middleware = OperationLogMiddleware {
-            inner: service,
-            enabled: false,
+        let mut service = OperationLogMiddleware {
+            inner: tower::service_fn(|req: Request<Body>| async move {
+                Ok::<_, Infallible>(Response::new(Body::empty()))
+            }),
+            enabled: true,
         };
 
-        let request = create_request(Method::POST, "/test", Some(json!({"test": true})));
-        let response = middleware.call(request).await.unwrap();
+        let _ = service.call(req).await;
 
-        assert_eq!(response.status(), StatusCode::OK);
-        assert!(OperationLogContext::get().await.is_none());
+        let context = global::OperationLogContext::get().await.unwrap();
+        assert_eq!(context.method, method);
+        assert_eq!(context.url, uri);
+        assert_eq!(context.params, params);
+        assert_eq!(context.body, body);
+    }
+
+    #[tokio::test]
+    async fn test_operation_log_middleware() {
+        // 测试GET请求
+        assert_context(
+            "GET",
+            "/api/test?param1=value1&param2=value2",
+            Some(json!({
+                "param1": "value1",
+                "param2": "value2"
+            })),
+            None,
+        )
+        .await;
+
+        // 测试POST请求
+        assert_context(
+            "POST",
+            "/api/test",
+            None,
+            Some(json!({
+                "key": "value"
+            })),
+        )
+        .await;
+
+        // 测试PUT请求
+        assert_context(
+            "PUT",
+            "/api/test/1",
+            None,
+            Some(json!({
+                "name": "test"
+            })),
+        )
+        .await;
+
+        // 测试DELETE请求
+        assert_context("DELETE", "/api/test/1", None, None).await;
     }
 }

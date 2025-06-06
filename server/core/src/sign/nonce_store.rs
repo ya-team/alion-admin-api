@@ -1,23 +1,38 @@
+/// Nonce存储模块
+/// 
+/// 该模块提供了用于存储和验证nonce（一次性数字）的功能，包括：
+/// - 内存存储实现
+/// - Redis存储实现
+/// - 存储工厂函数
+
 use std::sync::Arc;
 
-/// Nonce storage enum that supports different storage implementations
+/// Nonce存储枚举
+/// 
+/// 支持不同的存储实现，包括内存存储和Redis存储
 #[derive(Clone)]
 pub enum NonceStore {
-    /// In-memory storage implementation
+    /// 内存存储实现
+    /// 
+    /// 使用内存存储nonce，适用于单机部署
     Memory(Arc<crate::sign::memory_nonce_store::MemoryNonceStore>),
-    /// Redis storage implementation
+    /// Redis存储实现
+    /// 
+    /// 使用Redis存储nonce，适用于分布式部署
     Redis(Arc<crate::sign::redis_nonce_store::RedisNonceStore>),
 }
 
 impl NonceStore {
-    /// Checks and sets a nonce
+    /// 检查并设置nonce
     ///
-    /// # Arguments
-    /// * `nonce` - The nonce string to validate and store
+    /// 验证nonce是否有效且未被使用过，如果有效则存储它
     ///
-    /// # Returns
-    /// * `true` - If the nonce is valid and has not been used before
-    /// * `false` - If the nonce is invalid or has been used before
+    /// # 参数
+    /// * `nonce` - 要验证和存储的nonce字符串
+    ///
+    /// # 返回
+    /// * `true` - 如果nonce有效且未被使用过
+    /// * `false` - 如果nonce无效或已被使用过
     pub async fn check_and_set(&self, nonce: &str) -> bool {
         match self {
             NonceStore::Memory(store) => store.check_and_set(nonce).await,
@@ -26,29 +41,49 @@ impl NonceStore {
     }
 }
 
-/// Factory function type for creating NonceStore instances
+/// Nonce存储工厂函数类型
+/// 
+/// 用于创建NonceStore实例的工厂函数类型
 pub type NonceStoreFactory = Arc<dyn Fn() -> NonceStore + Send + Sync>;
 
-/// Creates an in-memory version of NonceStore
+/// 创建内存版本的NonceStore
+/// 
+/// # 返回
+/// * `NonceStore` - 使用内存存储的NonceStore实例
 pub fn create_memory_store() -> NonceStore {
     NonceStore::Memory(Arc::new(
         crate::sign::memory_nonce_store::MemoryNonceStore::new(),
     ))
 }
 
-/// Creates a Redis version of NonceStore
+/// 创建Redis版本的NonceStore
+/// 
+/// # 参数
+/// * `prefix` - Redis键前缀
+/// 
+/// # 返回
+/// * `NonceStore` - 使用Redis存储的NonceStore实例
 pub fn create_redis_store(prefix: impl Into<String>) -> NonceStore {
     NonceStore::Redis(Arc::new(
         crate::sign::redis_nonce_store::RedisNonceStore::new(prefix),
     ))
 }
 
-/// Creates a factory function for in-memory NonceStore
+/// 创建内存NonceStore的工厂函数
+/// 
+/// # 返回
+/// * `NonceStoreFactory` - 创建内存NonceStore的工厂函数
 pub fn create_memory_store_factory() -> NonceStoreFactory {
     Arc::new(|| create_memory_store())
 }
 
-/// Creates a factory function for Redis NonceStore
+/// 创建Redis NonceStore的工厂函数
+/// 
+/// # 参数
+/// * `prefix` - Redis键前缀
+/// 
+/// # 返回
+/// * `NonceStoreFactory` - 创建Redis NonceStore的工厂函数
 pub fn create_redis_store_factory(
     prefix: impl Into<String> + Clone + Send + Sync + 'static,
 ) -> NonceStoreFactory {

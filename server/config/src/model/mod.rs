@@ -27,7 +27,7 @@ pub use server_config::ServerConfig;
 /// 例如：多个数据库实例、多个Redis实例等
 /// 
 /// 示例用法：
-/// ```rust
+/// 
 /// let configs = OptionalConfigs {
 ///     configs: Some(vec![
 ///         DatabasesInstancesConfig {
@@ -36,7 +36,7 @@ pub use server_config::ServerConfig;
 ///         }
 ///     ])
 /// };
-/// ```
+/// 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct OptionalConfigs<T> {

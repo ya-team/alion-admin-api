@@ -1,5 +1,51 @@
+/*! 菜单错误模块
+ * 
+ * 该模块定义了与系统菜单相关的错误类型。
+ * 包括菜单的创建、修改、删除等操作相关的错误。
+ * 
+ * 错误类型
+ * --------
+ * MenuError 定义了菜单相关的所有错误情况，包括：
+ * - 菜单不存在
+ * - 菜单已存在
+ * - 菜单被禁用
+ * - 内置菜单不可修改
+ * - 菜单代码重复
+ * - 菜单名称重复
+ * - 菜单操作失败
+ * - 数据库操作失败
+ * 
+ * 错误代码
+ * --------
+ * - 6001: 菜单不存在
+ * - 6002: 菜单已存在
+ * - 6003: 菜单被禁用
+ * - 6004: 内置菜单不可修改
+ * - 6005: 菜单代码重复
+ * - 6006: 菜单名称重复
+ * - 6007: 菜单操作失败
+ * - 6008: 数据库操作失败
+ * 
+ * 使用示例
+ * --------
+ * /* 创建菜单不存在错误
+ *  * let error = MenuError::MenuNotFound;
+ *  */
+ * 
+ * /* 处理重复菜单代码错误
+ *  * let error = MenuError::DuplicateCode;
+ *  */
+ * 
+ * /* 处理数据库错误
+ *  * let db_error = MenuError::database_error("Failed to save menu".to_string());
+ *  */
+ */
+
+#![allow(unused_imports)]
+
 use server_core::web::error::{ApiError, AppError};
 use thiserror::Error;
+use crate::admin::errors::{CommonError, impl_from_common_error, impl_from_db_error};
 use sea_orm::DbErr;
 
 #[derive(Debug, Error)]

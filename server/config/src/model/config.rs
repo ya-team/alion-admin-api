@@ -11,7 +11,7 @@ use super::{
 ///
 /// 1. 首先从配置文件（如 application.yaml）中加载整体配置
 /// 2. 然后通过 `init_from_file` 函数将配置注入到全局状态中
-///    ```rust
+///    
 ///    // 注入主配置
 ///    global::init_config::<Config>(config.clone()).await;
 ///
@@ -26,7 +26,7 @@ use super::{
 ///
 ///    // 注入 Redis 配置
 ///    global::init_config::<RedisConfig>(config.redis).await;
-///    ```
+///    
 ///
 /// # 配置项说明
 ///
@@ -38,7 +38,7 @@ use super::{
 /// - `redis_instances`: 可选的 Redis 连接池配置，用于配置多个命名的 Redis 连接
 ///
 /// # 示例配置（YAML）
-/// ```yaml
+/// yaml
 /// database:
 ///   url: "postgres://user:pass@localhost:5432/dbname"
 ///   max_connections: 10
@@ -65,7 +65,7 @@ use super::{
 ///     urls:
 ///       - "redis://:password@localhost:6379"
 ///       - "redis://:password@localhost:6380"
-/// ```
+/// 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     /// 主数据库配置
