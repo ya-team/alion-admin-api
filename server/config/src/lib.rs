@@ -8,7 +8,6 @@
 /// - Config: 应用程序主配置
 /// - DatabaseConfig: 数据库配置
 /// - JwtConfig: JWT配置
-/// - MongoConfig: MongoDB配置
 /// - RedisConfig: Redis配置
 /// - S3Config: AWS S3配置
 /// - ServerConfig: 服务器配置
@@ -17,7 +16,6 @@
 /// - OptionalConfigs: 可选配置包装器
 /// - RedisMode: Redis运行模式
 /// - DatabasesInstancesConfig: 数据库实例配置
-/// - MongoInstancesConfig: MongoDB实例配置
 /// - RedisInstancesConfig: Redis实例配置
 /// - S3InstancesConfig: S3实例配置
 
@@ -26,8 +24,8 @@ pub use config_init::init_from_file;
 
 /// 重新导出配置模型
 pub use model::{
-    Config, DatabaseConfig, DatabasesInstancesConfig, JwtConfig, MongoConfig, MongoInstancesConfig,
-    OptionalConfigs, RedisConfig, RedisInstancesConfig, RedisMode, S3Config, S3InstancesConfig,
+    Config, DatabaseConfig, DatabasesInstancesConfig, JwtConfig, OptionalConfigs,
+    RedisConfig, RedisInstancesConfig, RedisMode, S3Config, S3InstancesConfig,
     ServerConfig,
 };
 

@@ -4,7 +4,7 @@ use server_core::web::{auth::Claims, jwt::JwtUtils};
 mod tests {
     use std::sync::Arc;
 
-    use server_initialize::{initialize_config, initialize_keys_and_validation};
+    use server_initialize::{initialize_config, init_jwt};
     use tokio::sync::Mutex;
 
     use super::*;
@@ -28,7 +28,7 @@ mod tests {
         let mut initialized = INITIALIZED.lock().await;
         if initialized.is_none() {
             initialize_config("../resources/application.yaml").await;
-            initialize_keys_and_validation().await;
+            init_jwt().await.unwrap();
             *initialized = Some(Arc::new(()));
         }
     }
@@ -38,7 +38,7 @@ mod tests {
         init().await;
 
         let claims = create_claims(
-            "https://github.com/ByteByteBrew/alion-admin",
+            "git@github.com:ya-team/alion-admin-api.git",
             "audience",
         );
         let token = JwtUtils::generate_token(&claims).await.unwrap();
@@ -52,7 +52,7 @@ mod tests {
         init().await;
 
         let claims = create_claims(
-            "https://github.com/ByteByteBrew/alion-admin",
+            "git@github.com:ya-team/alion-admin-api.git",
             "invalid_audience",
         );
         let token = JwtUtils::generate_token(&claims).await.unwrap();
@@ -77,7 +77,7 @@ mod tests {
     //     init().await;
     //
     //     let claims =
-    //         create_claims("https://github.com/ByteByteBrew/alion-admin", "audience");
+    //         create_claims("git@github.com:ya-team/alion-admin-api.git", "audience");
     //     let token = JwtUtils::generate_token(&claims).await.unwrap();
     //
     //     let result = JwtUtils::validate_token(&token, "audience").await;
@@ -89,7 +89,7 @@ mod tests {
         init().await;
 
         let claims = create_claims(
-            "https://github.com/ByteByteBrew/alion-admin",
+            "git@github.com:ya-team/alion-admin-api.git",
             "audience",
         );
         let token = JwtUtils::generate_token(&claims).await.unwrap();

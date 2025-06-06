@@ -11,8 +11,10 @@
         "port": 10001
     },
     "jwt": {
-        "jwt_secret": "alion-admin",
-        "issuer": "https://github.com/ByteByteBrew/alion-admin",
-        "expire": 7200
+        "secret": "your-jwt-secret-key",
+        "issuer": "alion-admin",
+        "access_token_expire": 3600,
+        "refresh_token_expire": 604800,
+        "audience": "alion-admin-client"
     }
 }

@@ -12,9 +12,6 @@ pub use database_config::{DatabaseConfig, DatabasesInstancesConfig};
 /// 重新导出JWT认证配置
 pub use jwt_config::JwtConfig;
 
-/// 重新导出MongoDB相关配置
-pub use mongo_config::{MongoConfig, MongoInstancesConfig};
-
 /// 重新导出Redis相关配置
 pub use redis_config::{RedisConfig, RedisInstancesConfig, RedisMode};
 
@@ -68,9 +65,6 @@ mod database_config;
 
 /// JWT认证配置模块
 mod jwt_config;
-
-/// MongoDB配置模块
-mod mongo_config;
 
 /// Redis配置模块
 mod redis_config;

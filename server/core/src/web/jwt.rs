@@ -57,20 +57,18 @@ impl JwtUtils {
         let now = Utc::now();
         let timestamp = now.timestamp() as usize;
         let jwt_config = global::get_config::<JwtConfig>().await.unwrap();
-        claims_clone.set_exp((now + Duration::seconds(jwt_config.expire)).timestamp() as usize);
+        claims_clone.set_exp((now + Duration::seconds(jwt_config.access_token_expire as i64)).timestamp() as usize);
         claims_clone.set_iss(jwt_config.issuer.to_string());
         claims_clone.set_iat(timestamp);
         claims_clone.set_nbf(timestamp);
         claims_clone.set_jti(Ulid::new().to_string());
 
         let token = encode(&Header::default(), &claims_clone, &keys.encoding)
-            .map_err(|e| JwtError::TokenCreationError(e.to_string()));
+            .map_err(|e| JwtError::TokenCreationError(e.to_string()))?;
 
-        if let Ok(ref tok) = token {
-            global::send_string_event(tok.clone());
-        }
+        global::send_string_event(token.clone());
 
-        token
+        Ok(token)
     }
 
     pub async fn validate_token(

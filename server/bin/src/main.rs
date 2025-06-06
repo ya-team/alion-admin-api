@@ -4,7 +4,7 @@
 /// 1. 初始化应用程序配置
 /// 2. 设置日志和追踪
 /// 3. 初始化数据库连接
-/// 4. 初始化Redis和MongoDB连接
+/// 4. 初始化Redis连接
 /// 5. 设置路由和中间件
 /// 6. 启动HTTP服务器
 use std::net::SocketAddr;
@@ -27,29 +27,30 @@ async fn main() {
     server_initialize::initialize_config(config_path).await;
     
     // 初始化数据库连接
-    let _ = server_initialize::init_xdb().await;
-    server_initialize::init_primary_connection().await;
+    if let Err(e) = server_initialize::init_xdb().await {
+        eprintln!("Failed to initialize XDB: {}", e);
+        return;
+    }
+    if let Err(e) = server_initialize::init_primary_connection().await {
+        eprintln!("Failed to initialize primary database connection: {}", e);
+        return;
+    }
     server_initialize::init_db_pools().await;
     
     // 初始化密钥和验证器
-    server_initialize::initialize_keys_and_validation().await;
-    
-    // 初始化事件通道
+    if let Err(e) = server_initialize::init_jwt().await {
+        eprintln!("Failed to initialize JWT: {}", e);
+        return;
+    }
+    server_initialize::initialize_access_key().await;
     server_initialize::initialize_event_channel().await;
 
     // 初始化Redis连接
     server_initialize::init_primary_redis().await;
     server_initialize::init_redis_pools().await;
-    
-    // 初始化MongoDB连接
-    server_initialize::init_primary_mongo().await;
-    server_initialize::init_mongo_pools().await;
 
     // 构建应用程序路由
     let app = server_initialize::initialize_admin_router().await;
-
-    // 初始化访问密钥（需要在验证器初始化之后）
-    server_initialize::initialize_access_key().await;
 
     // 获取服务器地址
     let addr = match server_initialize::get_server_address().await {

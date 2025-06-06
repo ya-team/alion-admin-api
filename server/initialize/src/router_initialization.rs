@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use std::error::Error;
+use tokio::sync::mpsc;
 
 use axum::{body::Body, http::StatusCode, response::IntoResponse, Extension, Router};
 use axum_casbin::CasbinAxumLayer;
@@ -30,7 +32,7 @@ use server_service::{
 use tower_http::trace::TraceLayer;
 use tracing::info_span;
 
-use crate::{initialize_casbin, project_error, project_info};
+use crate::{initialize_casbin, project_error, project_info, db_initialization};
 
 #[derive(Clone)]
 pub enum Services<T: Send + Sync + 'static> {
@@ -96,12 +98,14 @@ pub async fn initialize_admin_router() -> Router {
     project_info!("Initializing admin router");
 
     let app_config = get_config::<Config>().await.unwrap();
-    let db: DatabaseConnection = sea_orm::Database::connect(&app_config.database.url)
-        .await
+    let db = db_initialization::init_primary_connection().await
         .expect("Failed to connect to database");
+    
+    let db_url = app_config.database.url.clone();
+    
     let casbin_layer = initialize_casbin(
         "server/resources/rbac_model.conf",
-        app_config.database.url.as_str(),
+        &db_url,
     )
     .await
     .unwrap();
@@ -199,9 +203,10 @@ pub async fn initialize_admin_router() -> Router {
         None
     );
 
+    let auth_service = Arc::new(SysAuthService);
     let auth_router = SysAuthenticationRouter::init_authorization_router()
         .await
-        .layer(Extension(Arc::new(SysAuthService) as Arc<SysAuthService>))
+        .layer(Extension(auth_service.clone()))
         .layer(Extension(
             Arc::new(SysAuthorizationService::new(db.clone())) as Arc<SysAuthorizationService>
         ));
@@ -369,4 +374,32 @@ fn generate_id(path: &str, method: &str) -> String {
     let mut hasher = DefaultHasher::new();
     format!("{}{}", path, method).hash(&mut hasher);
     format!("{:x}", hasher.finish())
+}
+
+#[allow(dead_code)]
+pub async fn init_router(_app_config: &Config) -> Result<Router, Box<dyn Error>> {
+    #[allow(unused_variables)]
+    let db = db_initialization::init_primary_connection().await?;
+    #[allow(unused_variables)]
+    let (event_sender, _event_receiver) = mpsc::unbounded_channel::<Box<dyn std::any::Any + Send>>();
+    #[allow(unused_variables)]
+    let auth_service = Arc::new(SysAuthService);
+
+    // Initialize router
+    let router = Router::new()
+        .merge(SysAuthenticationRouter::init_authentication_router().await)
+        .merge(SysAuthenticationRouter::init_authorization_router().await.layer(Extension(auth_service.clone())))
+        .merge(SysAuthenticationRouter::init_protected_router().await)
+        .merge(SysMenuRouter::init_menu_router().await)
+        .merge(SysMenuRouter::init_protected_menu_router().await)
+        .merge(SysUserRouter::init_user_router().await)
+        .merge(SysDomainRouter::init_domain_router().await)
+        .merge(SysRoleRouter::init_role_router().await)
+        .merge(SysEndpointRouter::init_endpoint_router().await)
+        .merge(SysAccessKeyRouter::init_access_key_router().await)
+        .merge(SysLoginLogRouter::init_login_log_router().await)
+        .merge(SysOperationLogRouter::init_operation_log_router().await)
+        .merge(SysOrganizationRouter::init_organization_router().await);
+
+    Ok(router)
 }

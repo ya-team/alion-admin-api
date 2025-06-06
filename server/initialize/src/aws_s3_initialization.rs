@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use std::{process, sync::Arc};
+use std::error::Error;
 
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::{
@@ -66,32 +67,34 @@ async fn init_s3_connection(name: &str, config: &S3Config) -> Result<(), String>
     }
 }
 
-async fn create_s3_client(config: &S3Config) -> Result<S3Client, String> {
-    let mut aws_config_builder =
-        aws_config::defaults(BehaviorVersion::latest()).region(Region::new(config.region.clone()));
-
-    if let Some(endpoint) = &config.endpoint {
-        aws_config_builder = aws_config_builder.endpoint_url(endpoint);
+pub async fn create_s3_client(config: &S3Config) -> Result<S3Client, Box<dyn Error>> {
+    let mut sdk_config = aws_config::defaults(BehaviorVersion::latest());
+    
+    // Handle region
+    if let Some(region) = &config.region {
+        sdk_config = sdk_config.region(Region::new(region.clone()));
     }
 
-    if !config.access_key_id.is_empty() && !config.secret_access_key.is_empty() {
-        aws_config_builder = aws_config_builder.credentials_provider(Credentials::new(
-            config.access_key_id.clone(),
-            config.secret_access_key.clone(),
-            None,
-            None,
-            "alion-admin",
-        ));
+    // Handle endpoint
+    sdk_config = sdk_config.endpoint_url(&config.endpoint);
+
+    // Handle credentials if provided
+    if !config.access_key_id.is_empty() && !config.access_key_secret.is_empty() {
+        sdk_config = sdk_config.credentials_provider(
+            Credentials::new(
+                config.access_key_id.clone(),
+                config.access_key_secret.clone(),
+                None,
+                None,
+                "static",
+            ),
+        );
     }
 
-    let aws_config = aws_config_builder.load().await;
-    let client = S3Client::new(&aws_config);
+    let sdk_config = sdk_config.load().await;
+    let client = S3Client::new(&sdk_config);
 
-    // 验证 S3 客户端连接
-    match client.list_buckets().send().await {
-        Ok(_) => Ok(client),
-        Err(e) => Err(format!("Failed to connect to S3: {}", e)),
-    }
+    Ok(client)
 }
 
 /// 获取主要的 S3 客户端
@@ -248,10 +251,13 @@ mod tests {
         let test_config = S3InstancesConfig {
             name: "test_s3".to_string(),
             s3: S3Config {
-                region: "us-east-1".to_string(),
+                endpoint: "http://localhost:4566".to_string(),
                 access_key_id: "test_key".to_string(),
-                secret_access_key: "test_secret".to_string(),
-                endpoint: Some("http://localhost:4566".to_string()),
+                access_key_secret: "test_secret".to_string(),
+                region: Some("us-east-1".to_string()),
+                bucket: "test-bucket".to_string(),
+                use_ssl: false,
+                custom_domain: None,
             },
         };
 
@@ -289,5 +295,21 @@ mod tests {
             connection_after_removal.is_none(),
             "S3 connection still exists after removal"
         );
+    }
+
+    #[tokio::test]
+    async fn test_s3_client_initialization() {
+        let config = S3Config {
+            endpoint: "http://localhost:4566".to_string(),
+            access_key_id: "test_key".to_string(),
+            access_key_secret: "test_secret".to_string(),
+            region: Some("us-east-1".to_string()),
+            bucket: "test-bucket".to_string(),
+            use_ssl: false,
+            custom_domain: None,
+        };
+
+        let result = create_s3_client(&config).await;
+        assert!(result.is_ok());
     }
 }

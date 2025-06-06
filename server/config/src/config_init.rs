@@ -6,9 +6,8 @@ use tokio::fs;
 
 use crate::{
     model::{Config, OptionalConfigs},
-    project_error, project_info, DatabaseConfig, DatabasesInstancesConfig, JwtConfig, MongoConfig,
-    MongoInstancesConfig, RedisConfig, RedisInstancesConfig, S3Config, S3InstancesConfig,
-    ServerConfig,
+    project_error, project_info, DatabaseConfig, DatabasesInstancesConfig, JwtConfig,
+    RedisConfig, RedisInstancesConfig, S3Config, S3InstancesConfig, ServerConfig,
 };
 
 /// 配置错误类型，用于处理配置加载和解析过程中可能出现的错误
@@ -60,7 +59,7 @@ async fn parse_config(file_path: &str, content: String) -> Result<Config, Config
 /// 1. 读取配置文件
 /// 2. 解析配置内容
 /// 3. 初始化全局配置
-/// 4. 设置数据库、Redis、MongoDB等服务的配置
+/// 4. 设置数据库、Redis等服务的配置
 /// 
 /// # 参数
 /// * `file_path` - 配置文件路径
@@ -99,13 +98,6 @@ pub async fn init_from_file(file_path: &str) -> Result<(), ConfigError> {
         global::init_config::<RedisConfig>(redis_config).await;
     }
     global::init_config::<OptionalConfigs<RedisInstancesConfig>>(config.redis_instances.into())
-        .await;
-
-    // 初始化MongoDB配置
-    if let Some(mongo_config) = config.mongo {
-        global::init_config::<MongoConfig>(mongo_config).await;
-    }
-    global::init_config::<OptionalConfigs<MongoInstancesConfig>>(config.mongo_instances.into())
         .await;
 
     // 初始化S3配置

@@ -10,14 +10,16 @@ pub async fn initialize_log_tracing() {
     }
 
     let env_filter = if cfg!(debug_assertions) {
-        EnvFilter::new("debug,sea_orm=debug")
+        EnvFilter::new("debug,sea_orm=debug,sqlx=debug")
     } else {
-        EnvFilter::new("info,sea_orm=info")
+        EnvFilter::new("info,sea_orm=info,sqlx=info")
     };
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
-        .with_ansi(true);
+        .with_ansi(true)
+        .with_file(true)
+        .with_line_number(true);
 
     let subscriber = Registry::default()
         .with(env_filter)

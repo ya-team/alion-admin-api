@@ -1,5 +1,6 @@
 #![allow(dead_code)]
-use std::{process, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
+use std::error::Error;
 
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use server_config::{DatabaseConfig, DatabasesInstancesConfig, OptionalConfigs};
@@ -7,19 +8,22 @@ use server_global::global::{get_config, GLOBAL_DB_POOL, GLOBAL_PRIMARY_DB};
 
 use crate::{project_error, project_info};
 
-pub async fn init_primary_connection() {
-    let db_config = get_config::<DatabaseConfig>().await.unwrap();
+pub async fn init_primary_connection() -> Result<DatabaseConnection, Box<dyn Error>> {
+    let db_config = get_config::<DatabaseConfig>().await
+        .ok_or_else(|| Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "Database config not found")))?;
+    
     let opt = build_connect_options(&db_config);
     match Database::connect(opt).await {
         Ok(db) => {
             let db = Arc::new(db);
             *GLOBAL_PRIMARY_DB.write().await = Some(db.clone());
-            GLOBAL_DB_POOL.write().await.insert("default".to_string(), db);
+            GLOBAL_DB_POOL.write().await.insert("default".to_string(), db.clone());
             project_info!("Primary database connection initialized");
+            Ok((*db).clone())
         },
         Err(e) => {
             project_error!("Failed to connect to primary database: {}", e);
-            process::exit(1);
+            Err(Box::new(e))
         },
     }
 }
@@ -65,13 +69,14 @@ async fn init_db_connection(name: &str, db_config: &DatabaseConfig) -> Result<()
     }
 }
 
-fn build_connect_options(db_config: &DatabaseConfig) -> ConnectOptions {
+pub fn build_connect_options(db_config: &DatabaseConfig) -> ConnectOptions {
     let mut opt = ConnectOptions::new(db_config.url.clone());
     opt.max_connections(db_config.max_connections)
-        .min_connections(db_config.min_connections)
-        .connect_timeout(Duration::from_secs(db_config.connect_timeout))
-        .idle_timeout(Duration::from_secs(db_config.idle_timeout))
-        .sqlx_logging(false);
+        .min_connections(db_config.min_idle.unwrap_or(5))
+        .connect_timeout(Duration::from_secs(db_config.connect_timeout.unwrap_or(15)))
+        .idle_timeout(Duration::from_secs(db_config.idle_timeout.unwrap_or(600)))
+        .max_lifetime(Duration::from_secs(db_config.max_lifetime.unwrap_or(3600)));
+
     opt
 }
 
@@ -101,14 +106,12 @@ pub async fn remove_db_pool_connection(name: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use log::LevelFilter;
-    use server_config::Config;
-    use server_global::global::get_config;
     use simple_logger::SimpleLogger;
     use tokio::sync::Mutex;
-
-    use super::*;
     use crate::initialize_config;
+    use server_config::Config;
 
     fn setup_logger() {
         let _ = SimpleLogger::new().with_level(LevelFilter::Info).init();
@@ -129,12 +132,13 @@ mod tests {
         setup_logger();
         init().await;
 
-        init_primary_connection().await;
+        let result = init_primary_connection().await;
+        assert!(result.is_ok(), "Failed to initialize primary connection: {:?}", result.err());
 
         let connection = get_primary_db_connection().await;
         assert!(
             connection.is_some(),
-            "Master database connection does not exist"
+            "Primary database connection does not exist"
         );
     }
 
@@ -152,43 +156,24 @@ mod tests {
         );
 
         let db_config = DatabaseConfig {
-            url: "postgres://postgres:123456@localhost:5432/alion-admin-backend".to_string(),
-            max_connections: 50,
-            min_connections: 5,
-            connect_timeout: 15,
-            idle_timeout: 600,
+            url: "postgres://postgres:postgres@localhost:5432/test_db".to_string(),
+            max_connections: 10,
+            min_idle: Some(1),
+            connect_timeout: Some(30),
+            idle_timeout: Some(600),
+            max_lifetime: Some(3600),
         };
 
         let add_result = add_or_update_db_pool_connection("test_connection", &db_config).await;
         assert!(add_result.is_ok(), "Failed to add database connection");
 
         let connection = get_db_pool_connection("test_connection").await;
-        assert!(
-            connection.is_some(),
-            "Database connection 'test_connection' does not exist"
-        );
-        println!("Added and retrieved database connection successfully.");
-
-        println!(
-            "Current pool size after addition: {}",
-            GLOBAL_DB_POOL.read().await.len()
-        );
+        assert!(connection.is_some(), "Database connection does not exist");
 
         let remove_result = remove_db_pool_connection("test_connection").await;
-        assert!(
-            remove_result.is_ok(),
-            "Failed to remove database connection"
-        );
+        assert!(remove_result.is_ok(), "Failed to remove database connection");
 
-        let connection_after_removal = get_db_pool_connection("test_connection").await;
-        assert!(
-            connection_after_removal.is_none(),
-            "Database connection 'test_connection' still exists after removal"
-        );
-
-        println!(
-            "Current pool size after removal: {}",
-            GLOBAL_DB_POOL.read().await.len()
-        );
+        let connection = get_db_pool_connection("test_connection").await;
+        assert!(connection.is_none(), "Database connection still exists");
     }
 }

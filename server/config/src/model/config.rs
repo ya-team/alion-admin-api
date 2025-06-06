@@ -1,8 +1,7 @@
 use serde::Deserialize;
 
 use super::{
-    DatabaseConfig, DatabasesInstancesConfig, JwtConfig, MongoConfig, MongoInstancesConfig,
-    RedisConfig, RedisInstancesConfig, S3Config, S3InstancesConfig, ServerConfig,
+    DatabaseConfig, DatabasesInstancesConfig, JwtConfig, RedisConfig, RedisInstancesConfig, S3Config, S3InstancesConfig, ServerConfig,
 };
 
 /// 应用程序配置结构
@@ -37,8 +36,6 @@ use super::{
 /// - `jwt`: JWT 认证配置，包含密钥和过期时间等
 /// - `redis`: 主 Redis 配置，用于配置默认的 Redis 连接
 /// - `redis_instances`: 可选的 Redis 连接池配置，用于配置多个命名的 Redis 连接
-/// - `mongo`: 主 MongoDB 配置，用于配置默认的 MongoDB 连接
-/// - `mongo_instances`: 可选的 MongoDB 连接池配置，用于配置多个命名的 MongoDB 连接
 ///
 /// # 示例配置（YAML）
 /// ```yaml
@@ -90,13 +87,6 @@ pub struct Config {
     /// 可选的 Redis 连接池配置
     /// 用于配置多个命名的 Redis 连接
     pub redis_instances: Option<Vec<RedisInstancesConfig>>,
-
-    /// 主 MongoDB 配置
-    pub mongo: Option<MongoConfig>,
-
-    /// 可选的 MongoDB 连接池配置
-    /// 用于配置多个命名的 MongoDB 连接
-    pub mongo_instances: Option<Vec<MongoInstancesConfig>>,
 
     /// 主 S3 配置
     pub s3: Option<S3Config>,

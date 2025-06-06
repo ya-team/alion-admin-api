@@ -17,7 +17,7 @@ mod tests {
         auth::{Claims, User},
         res::Res,
     };
-    use server_initialize::{initialize_config, initialize_keys_and_validation};
+    use server_initialize::{initialize_config, init_jwt};
     use server_middleware::jwt_auth_middleware;
     use tower::{ServiceBuilder, ServiceExt};
 
@@ -35,7 +35,7 @@ mod tests {
         let casbin_middleware = CasbinAxumLayer::new(m, a).await.unwrap();
 
         initialize_config("../resources/application.yaml").await;
-        initialize_keys_and_validation().await;
+        init_jwt().await.unwrap();
 
         let app = Router::new()
             .route("/pen/1", get(user_info_handler))

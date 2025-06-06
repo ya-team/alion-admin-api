@@ -1,16 +1,19 @@
 database:
-    url: "postgres://postgres:postgres@localhost:5432/alion-admin"
+    url: "postgres://postgres:123456@localhost:5432/alion-admin"
     max_connections: 10
-    min_connections: 1
+    min_idle: 1
     connect_timeout: 30
     idle_timeout: 600
+    max_lifetime: 3600
 server:
     host: "0.0.0.0"
     port: 9528
 jwt:
-    jwt_secret: "alion-admin"
-    issuer: "https://github.com/ByteByteBrew/alion-admin"
-    expire: 7200
+    secret: "alion-admin"
+    access_token_expire: 7200
+    refresh_token_expire: 604800
+    issuer: "git@github.com:ya-team/alion-admin-api.git"
+    audience: "alion-admin"
 redis:
     mode: single
     url: "redis://password@127.0.0.1:6379/0"

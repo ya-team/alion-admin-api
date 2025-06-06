@@ -1,34 +1,25 @@
 use std::sync::Arc;
+use std::error::Error;
 
 use server_config::JwtConfig;
 use server_global::{global, Validation};
 use tokio::sync::Mutex;
 
-use crate::{project_error, project_info};
-
-pub async fn initialize_keys_and_validation() {
-    let jwt_config = match global::get_config::<JwtConfig>().await {
-        Some(cfg) => cfg,
-        None => {
-            project_error!("Failed to load JWT config");
-            return;
-        },
-    };
-
-    let keys = global::Keys::new(jwt_config.jwt_secret.as_bytes());
-    if global::KEYS.set(Arc::new(Mutex::new(keys))).is_err() {
-        project_error!("Failed to set KEYS");
-    }
-
+pub async fn init_jwt() -> Result<(), Box<dyn Error>> {
+    let jwt_config = global::get_config::<JwtConfig>().await
+        .ok_or_else(|| Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "JWT config not found")))?;
+    
+    let keys = global::Keys::new(jwt_config.secret.as_bytes());
     let mut validation = Validation::default();
     validation.leeway = 60;
-    validation.set_issuer(&[&jwt_config.issuer]);
-    if global::VALIDATION
-        .set(Arc::new(Mutex::new(validation)))
-        .is_err()
-    {
-        project_error!("Failed to set VALIDATION");
-    }
+    validation.set_issuer(&[jwt_config.issuer.clone()]);
+    validation.set_audience(&[jwt_config.audience.clone()]);
 
-    project_info!("JWT keys and validation initialized");
+    global::KEYS.set(Arc::new(Mutex::new(keys)))
+        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to set JWT keys: {}", e))))?;
+    
+    global::VALIDATION.set(Arc::new(Mutex::new(validation)))
+        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to set JWT validation: {}", e))))?;
+
+    Ok(())
 }
