@@ -1,8 +1,16 @@
+/**
+ * Database migration utilities for Casbin rules
+ * 
+ * This module provides functions to create and drop the database table used for storing Casbin rules.
+ * It handles the schema migration for the `casbin_rule` table.
+ */
+
 use sea_orm::{
     sea_query::{ColumnDef, Index, Table},
     ConnectionTrait, DbErr, DeriveIden, ExecResult,
 };
 
+/** Identifiers for the casbin_rule table and its columns */
 #[derive(DeriveIden)]
 enum CasbinRule {
     Table,
@@ -16,6 +24,22 @@ enum CasbinRule {
     V5,
 }
 
+/**
+ * Creates the casbin_rule table if it doesn't exist
+ * 
+ * This function creates a table with the following structure:
+ * - `id`: Auto-incrementing primary key
+ * - `ptype`: Policy type (18 characters max)
+ * - `v0` through `v5`: Rule values (125 characters max each)
+ * 
+ * The table also includes a unique index on all columns to prevent duplicate rules.
+ * 
+ * # Arguments
+ * * `conn` - A database connection that implements `ConnectionTrait`
+ * 
+ * # Returns
+ * * `Result<ExecResult, DbErr>` - The result of the table creation operation
+ */
 pub async fn up<C: ConnectionTrait>(conn: &C) -> Result<ExecResult, DbErr> {
     let create_table = Table::create()
         .if_not_exists()
@@ -55,6 +79,15 @@ pub async fn up<C: ConnectionTrait>(conn: &C) -> Result<ExecResult, DbErr> {
     conn.execute(builder.build(&create_table)).await
 }
 
+/**
+ * Drops the casbin_rule table if it exists
+ * 
+ * # Arguments
+ * * `conn` - A database connection that implements `ConnectionTrait`
+ * 
+ * # Returns
+ * * `Result<ExecResult, DbErr>` - The result of the table drop operation
+ */
 pub async fn down<C: ConnectionTrait>(conn: &C) -> Result<ExecResult, DbErr> {
     let drop_table = Table::drop()
         .if_exists()

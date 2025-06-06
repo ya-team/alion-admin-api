@@ -1,3 +1,10 @@
+/**
+ * SeaORM adapter implementation for Casbin
+ * 
+ * This module provides the main adapter implementation that connects Casbin with SeaORM.
+ * It implements the Casbin Adapter trait to provide database persistence for Casbin policies.
+ */
+
 use async_trait::async_trait;
 use casbin::{error::AdapterError, Adapter, Error as CasbinError, Filter, Model, Result};
 use sea_orm::ConnectionTrait;
@@ -7,12 +14,29 @@ use crate::{
     entity, migration,
 };
 
+/**
+ * SeaORM adapter for Casbin
+ * 
+ * This struct implements the Casbin Adapter trait using SeaORM for database operations.
+ * It provides methods to load, save, add, and remove policies from the database.
+ */
 pub struct SeaOrmAdapter<C> {
+    /** Database connection */
     conn: C,
+    /** Whether the adapter is in filtered mode */
     is_filtered: bool,
 }
 
 impl<C: ConnectionTrait> SeaOrmAdapter<C> {
+    /**
+     * Creates a new SeaORM adapter
+     * 
+     * # Arguments
+     * * `conn` - Database connection
+     * 
+     * # Returns
+     * * `Result<Self>` - The created adapter or an error
+     */
     pub async fn new(conn: C) -> Result<Self> {
         migration::up(&conn)
             .await
@@ -25,6 +49,16 @@ impl<C: ConnectionTrait> SeaOrmAdapter<C> {
 }
 
 impl<C> SeaOrmAdapter<C> {
+    /**
+     * Transforms a policy line into a RuleWithType
+     * 
+     * # Arguments
+     * * `ptype` - Policy type
+     * * `rule` - Policy rule values
+     * 
+     * # Returns
+     * * `Option<RuleWithType>` - The transformed rule or None if invalid
+     */
     fn transform_policy_line<'a>(ptype: &'a str, rule: &'a [String]) -> Option<RuleWithType<'a>> {
         if ptype.trim().is_empty() || rule.is_empty() {
             return None;
@@ -33,6 +67,15 @@ impl<C> SeaOrmAdapter<C> {
         Some(RuleWithType::from_rule(ptype, Rule::from_slice(rule)))
     }
 
+    /**
+     * Normalizes a database model into a policy vector
+     * 
+     * # Arguments
+     * * `model` - Database model to normalize
+     * 
+     * # Returns
+     * * `Option<Vec<String>>` - The normalized policy or None if empty
+     */
     fn normalize_policy(model: &entity::Model) -> Option<Vec<String>> {
         let policy: Vec<_> = [
             &model.v0, &model.v1, &model.v2, &model.v3, &model.v4, &model.v5,
@@ -52,6 +95,15 @@ impl<C> SeaOrmAdapter<C> {
 
 #[async_trait]
 impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
+    /**
+     * Loads all policies from the database into the model
+     * 
+     * # Arguments
+     * * `m` - The model to load policies into
+     * 
+     * # Returns
+     * * `Result<()>` - Success or error
+     */
     async fn load_policy(&mut self, m: &mut dyn Model) -> Result<()> {
         let rules = action::load_policy(&self.conn).await?;
 
@@ -70,6 +122,16 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         Ok(())
     }
 
+    /**
+     * Loads filtered policies from the database into the model
+     * 
+     * # Arguments
+     * * `m` - The model to load policies into
+     * * `f` - Filter criteria
+     * 
+     * # Returns
+     * * `Result<()>` - Success or error
+     */
     async fn load_filtered_policy<'a>(&mut self, m: &mut dyn Model, f: Filter<'a>) -> Result<()> {
         let rules = action::load_filtered_policy(&self.conn, f).await?;
         self.is_filtered = true;
@@ -89,6 +151,15 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         Ok(())
     }
 
+    /**
+     * Saves all policies from the model to the database
+     * 
+     * # Arguments
+     * * `m` - The model containing policies to save
+     * 
+     * # Returns
+     * * `Result<()>` - Success or error
+     */
     async fn save_policy(&mut self, m: &mut dyn Model) -> Result<()> {
         let mut rules = Vec::new();
 
@@ -111,14 +182,37 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         action::save_policies(&self.conn, rules).await
     }
 
+    /**
+     * Clears all policies from the database
+     * 
+     * # Returns
+     * * `Result<()>` - Success or error
+     */
     async fn clear_policy(&mut self) -> Result<()> {
         action::clear_policy(&self.conn).await
     }
 
+    /**
+     * Returns whether the adapter is in filtered mode
+     * 
+     * # Returns
+     * * `bool` - True if the adapter is filtered
+     */
     fn is_filtered(&self) -> bool {
         self.is_filtered
     }
 
+    /**
+     * Adds a single policy rule to the database
+     * 
+     * # Arguments
+     * * `_sec` - Section (unused)
+     * * `ptype` - Policy type
+     * * `rule` - Policy rule to add
+     * 
+     * # Returns
+     * * `Result<bool>` - True if the rule was added successfully
+     */
     async fn add_policy(&mut self, _sec: &str, ptype: &str, rule: Vec<String>) -> Result<bool> {
         if let Some(rule_with_type) = Self::transform_policy_line(ptype, &rule) {
             action::add_policy(&self.conn, rule_with_type).await
@@ -127,6 +221,17 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         }
     }
 
+    /**
+     * Adds multiple policy rules to the database
+     * 
+     * # Arguments
+     * * `_sec` - Section (unused)
+     * * `ptype` - Policy type
+     * * `rules` - Vector of policy rules to add
+     * 
+     * # Returns
+     * * `Result<bool>` - True if all rules were added successfully
+     */
     async fn add_policies(
         &mut self,
         _sec: &str,
@@ -145,6 +250,17 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         action::add_policies(&self.conn, rules).await
     }
 
+    /**
+     * Removes a single policy rule from the database
+     * 
+     * # Arguments
+     * * `_sec` - Section (unused)
+     * * `ptype` - Policy type
+     * * `rule` - Policy rule to remove
+     * 
+     * # Returns
+     * * `Result<bool>` - True if the rule was removed successfully
+     */
     async fn remove_policy(&mut self, _sec: &str, ptype: &str, rule: Vec<String>) -> Result<bool> {
         if let Some(rule_with_type) = Self::transform_policy_line(ptype, &rule) {
             action::remove_policy(&self.conn, rule_with_type).await
@@ -153,6 +269,17 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         }
     }
 
+    /**
+     * Removes multiple policy rules from the database
+     * 
+     * # Arguments
+     * * `_sec` - Section (unused)
+     * * `ptype` - Policy type
+     * * `rules` - Vector of policy rules to remove
+     * 
+     * # Returns
+     * * `Result<bool>` - True if all rules were removed successfully
+     */
     async fn remove_policies(
         &mut self,
         _sec: &str,
@@ -171,6 +298,18 @@ impl<C: ConnectionTrait + Send + Sync> Adapter for SeaOrmAdapter<C> {
         action::remove_policies(&self.conn, rules).await
     }
 
+    /**
+     * Removes filtered policy rules from the database
+     * 
+     * # Arguments
+     * * `_sec` - Section (unused)
+     * * `ptype` - Policy type
+     * * `field_index` - Starting index for matching
+     * * `field_values` - Values to match against
+     * 
+     * # Returns
+     * * `Result<bool>` - True if any rules were removed
+     */
     async fn remove_filtered_policy(
         &mut self,
         _sec: &str,

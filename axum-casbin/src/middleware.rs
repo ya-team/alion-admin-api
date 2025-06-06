@@ -1,3 +1,11 @@
+/**
+ * Axum middleware for Casbin authorization
+ * 
+ * This module provides middleware components for integrating Casbin authorization
+ * with Axum web applications. It includes the necessary structures and implementations
+ * for enforcing access control policies on HTTP requests.
+ */
+
 use std::{
     convert::Infallible,
     ops::{Deref, DerefMut},
@@ -21,18 +29,43 @@ use http_body_util::Full;
 use tokio::sync::RwLock;
 use tower::{Layer, Service};
 
+/**
+ * Values used for Casbin policy enforcement
+ * 
+ * This struct contains the subject (user) and optional domain information
+ * that will be used to evaluate access control policies.
+ */
 #[derive(Clone)]
 pub struct CasbinVals {
+    /** The subject(s) to check permissions for */
     pub subject: Vec<String>,
+    /** Optional domain for domain-specific policies */
     pub domain: Option<String>,
 }
 
+/**
+ * Layer for Casbin authorization in Axum
+ * 
+ * This struct implements the Tower Layer trait to provide Casbin authorization
+ * as middleware in Axum applications.
+ */
 #[derive(Clone)]
 pub struct CasbinAxumLayer {
+    /** The Casbin enforcer wrapped in a thread-safe reference */
     enforcer: Arc<RwLock<CachedEnforcer>>,
 }
 
 impl CasbinAxumLayer {
+    /**
+     * Creates a new CasbinAxumLayer
+     * 
+     * # Arguments
+     * * `m` - The Casbin model
+     * * `a` - The Casbin adapter
+     * 
+     * # Returns
+     * * `CasbinResult<Self>` - The created layer or an error
+     */
     pub async fn new<M: TryIntoModel, A: TryIntoAdapter>(m: M, a: A) -> CasbinResult<Self> {
         let enforcer: CachedEnforcer = CachedEnforcer::new(m, a).await?;
         Ok(CasbinAxumLayer {
@@ -40,10 +73,25 @@ impl CasbinAxumLayer {
         })
     }
 
+    /**
+     * Gets a clone of the enforcer
+     * 
+     * # Returns
+     * * `Arc<RwLock<CachedEnforcer>>` - A clone of the enforcer
+     */
     pub fn get_enforcer(&mut self) -> Arc<RwLock<CachedEnforcer>> {
         self.enforcer.clone()
     }
 
+    /**
+     * Creates a new layer with the specified enforcer
+     * 
+     * # Arguments
+     * * `e` - The enforcer to use
+     * 
+     * # Returns
+     * * `CasbinAxumLayer` - A new layer with the specified enforcer
+     */
     pub fn set_enforcer(e: Arc<RwLock<CachedEnforcer>>) -> CasbinAxumLayer {
         CasbinAxumLayer { enforcer: e }
     }
@@ -52,6 +100,15 @@ impl CasbinAxumLayer {
 impl<S> Layer<S> for CasbinAxumLayer {
     type Service = CasbinAxumMiddleware<S>;
 
+    /**
+     * Creates a new middleware service
+     * 
+     * # Arguments
+     * * `inner` - The inner service to wrap
+     * 
+     * # Returns
+     * * `Self::Service` - The wrapped service
+     */
     fn layer(&self, inner: S) -> Self::Service {
         CasbinAxumMiddleware {
             enforcer: self.enforcer.clone(),
@@ -74,9 +131,17 @@ impl DerefMut for CasbinAxumLayer {
     }
 }
 
+/**
+ * Middleware for Casbin authorization in Axum
+ * 
+ * This struct implements the Tower Service trait to provide Casbin authorization
+ * as middleware in Axum applications.
+ */
 #[derive(Clone)]
 pub struct CasbinAxumMiddleware<S> {
+    /** The inner service being wrapped */
     inner: S,
+    /** The Casbin enforcer wrapped in a thread-safe reference */
     enforcer: Arc<RwLock<CachedEnforcer>>,
 }
 
@@ -93,14 +158,37 @@ where
     ResBody::Error: Into<BoxError>,
 {
     type Error = Infallible;
-    // `BoxFuture` is a type alias for `Pin<Box<dyn Future + Send + 'a>>`
     type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
     type Response = Response;
 
+    /**
+     * Checks if the service is ready to process requests
+     * 
+     * # Arguments
+     * * `cx` - The task context
+     * 
+     * # Returns
+     * * `Poll<Result<(), Self::Error>>` - Whether the service is ready
+     */
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
 
+    /**
+     * Processes a request through the middleware
+     * 
+     * This function:
+     * 1. Extracts the path and method from the request
+     * 2. Gets the subject and domain from the request extensions
+     * 3. Enforces the Casbin policy
+     * 4. Returns appropriate responses based on the policy decision
+     * 
+     * # Arguments
+     * * `req` - The incoming request
+     * 
+     * # Returns
+     * * `Self::Future` - A future that resolves to the response
+     */
     fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
         let cloned_enforcer = self.enforcer.clone();
         let not_ready_inner = self.inner.clone();

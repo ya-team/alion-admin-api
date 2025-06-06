@@ -1,3 +1,10 @@
+/**
+ * Core functionality for managing Casbin rules in the database
+ * 
+ * This module provides the core functions for managing Casbin rules in the database,
+ * including adding, removing, and querying rules.
+ */
+
 use casbin::{error::AdapterError, Error as CasbinError, Filter, Result};
 use sea_orm::{
     ActiveModelTrait,
@@ -7,6 +14,7 @@ use sea_orm::{
 
 use crate::entity::{self, Column, Entity};
 
+/** Array of column identifiers for rule values */
 const COLUMNS: [Column; 6] = [
     Column::V0,
     Column::V1,
@@ -16,12 +24,22 @@ const COLUMNS: [Column; 6] = [
     Column::V5,
 ];
 
+/**
+ * Represents a Casbin rule with up to 6 values
+ */
 #[derive(Debug, Default)]
 pub(crate) struct Rule<'a> {
+    /** Array of rule values */
     pub(crate) values: [&'a str; 6],
 }
 
 impl<'a> Rule<'a> {
+    /**
+     * Creates a new Rule from a slice of strings
+     * 
+     * # Arguments
+     * * `value` - A slice of strings representing the rule values
+     */
     pub(crate) fn from_slice<T: AsRef<str>>(value: &'a [T]) -> Self {
         let mut values = [""; 6];
         for (i, v) in value.iter().enumerate().take(6) {
@@ -31,18 +49,40 @@ impl<'a> Rule<'a> {
     }
 }
 
+/**
+ * Represents a Casbin rule with its policy type
+ */
 #[derive(Debug, Default)]
 pub(crate) struct RuleWithType<'a> {
+    /** The policy type of the rule (e.g., "p" or "g") */
     pub(crate) ptype: &'a str,
+    /** The rule values */
     pub(crate) rule: Rule<'a>,
 }
 
 impl<'a> RuleWithType<'a> {
+    /**
+     * Creates a new RuleWithType from a policy type and rule
+     * 
+     * # Arguments
+     * * `ptype` - The policy type
+     * * `rule` - The rule values
+     */
     pub(crate) fn from_rule(ptype: &'a str, rule: Rule<'a>) -> Self {
         RuleWithType { ptype, rule }
     }
 }
 
+/**
+ * Removes a single policy rule from the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * * `rule` - The rule to remove
+ * 
+ * # Returns
+ * * `Result<bool>` - True if the rule was removed, false otherwise
+ */
 pub(crate) async fn remove_policy<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     rule: RuleWithType<'rule>,
@@ -58,6 +98,16 @@ pub(crate) async fn remove_policy<'conn, 'rule, C: ConnectionTrait>(
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
 }
 
+/**
+ * Removes multiple policy rules from the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * * `rules` - Vector of rules to remove
+ * 
+ * # Returns
+ * * `Result<bool>` - True if all rules were removed successfully
+ */
 pub(crate) async fn remove_policies<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     rules: Vec<RuleWithType<'rule>>,
@@ -68,6 +118,18 @@ pub(crate) async fn remove_policies<'conn, 'rule, C: ConnectionTrait>(
     Ok(true)
 }
 
+/**
+ * Removes filtered policy rules from the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * * `ptype` - Policy type
+ * * `index_of_match_start` - Starting index for matching
+ * * `rule` - Rule to match against
+ * 
+ * # Returns
+ * * `Result<bool>` - True if any rules were removed
+ */
 pub(crate) async fn remove_filtered_policy<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     ptype: &'rule str,
@@ -91,6 +153,15 @@ pub(crate) async fn remove_filtered_policy<'conn, 'rule, C: ConnectionTrait>(
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
 }
 
+/**
+ * Loads all policy rules from the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * 
+ * # Returns
+ * * `Result<Vec<entity::Model>>` - Vector of policy rules
+ */
 pub(crate) async fn load_policy<C: ConnectionTrait>(conn: &C) -> Result<Vec<entity::Model>> {
     entity::Entity::find()
         .all(conn)
@@ -98,6 +169,16 @@ pub(crate) async fn load_policy<C: ConnectionTrait>(conn: &C) -> Result<Vec<enti
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
 }
 
+/**
+ * Loads filtered policy rules from the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * * `filter` - Filter criteria
+ * 
+ * # Returns
+ * * `Result<Vec<entity::Model>>` - Vector of filtered policy rules
+ */
 pub(crate) async fn load_filtered_policy<'conn, 'filter, C: ConnectionTrait>(
     conn: &'conn C,
     filter: Filter<'filter>,
@@ -115,6 +196,16 @@ pub(crate) async fn load_filtered_policy<'conn, 'filter, C: ConnectionTrait>(
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
 }
 
+/**
+ * Creates a database condition from a rule
+ * 
+ * # Arguments
+ * * `prefix` - Policy type prefix
+ * * `rule` - Rule to create condition from
+ * 
+ * # Returns
+ * * `Condition` - Database query condition
+ */
 fn create_condition_from_rule(prefix: &str, rule: &Rule) -> Condition {
     rule.values
         .iter()
@@ -126,6 +217,16 @@ fn create_condition_from_rule(prefix: &str, rule: &Rule) -> Condition {
         )
 }
 
+/**
+ * Saves all policy rules to the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * * `rules` - Vector of rules to save
+ * 
+ * # Returns
+ * * `Result<()>` - Success or error
+ */
 pub(crate) async fn save_policies<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     rules: Vec<RuleWithType<'rule>>,
@@ -135,6 +236,16 @@ pub(crate) async fn save_policies<'conn, 'rule, C: ConnectionTrait>(
     Ok(())
 }
 
+/**
+ * Adds a single policy rule to the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * * `rule` - Rule to add
+ * 
+ * # Returns
+ * * `Result<bool>` - True if the rule was added successfully
+ */
 pub(crate) async fn add_policy<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     rule: RuleWithType<'rule>,
@@ -147,6 +258,16 @@ pub(crate) async fn add_policy<'conn, 'rule, C: ConnectionTrait>(
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
 }
 
+/**
+ * Adds multiple policy rules to the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * * `rules` - Vector of rules to add
+ * 
+ * # Returns
+ * * `Result<bool>` - True if all rules were added successfully
+ */
 pub(crate) async fn add_policies<'conn, 'rule, C: ConnectionTrait>(
     conn: &'conn C,
     rules: Vec<RuleWithType<'rule>>,
@@ -159,6 +280,15 @@ pub(crate) async fn add_policies<'conn, 'rule, C: ConnectionTrait>(
         .map_err(|err| CasbinError::from(AdapterError(Box::new(err))))
 }
 
+/**
+ * Creates an active model from a rule
+ * 
+ * # Arguments
+ * * `rule` - Rule to create model from
+ * 
+ * # Returns
+ * * `entity::ActiveModel` - Database active model
+ */
 fn create_active_model(rule: &RuleWithType) -> entity::ActiveModel {
     entity::ActiveModel {
         id: NotSet,
@@ -172,6 +302,15 @@ fn create_active_model(rule: &RuleWithType) -> entity::ActiveModel {
     }
 }
 
+/**
+ * Clears all policy rules from the database
+ * 
+ * # Arguments
+ * * `conn` - Database connection
+ * 
+ * # Returns
+ * * `Result<()>` - Success or error
+ */
 pub(crate) async fn clear_policy<C: ConnectionTrait>(conn: &C) -> Result<()> {
     Entity::delete_many()
         .exec(conn)
