@@ -407,6 +407,7 @@ impl SysAuthService {
      * * `Result<UserRoute, AuthError>` - 用户路由信息或错误
      */
     #[instrument(skip(self, db, role_codes), fields(domain = %domain))]
+    #[allow(dead_code)]
     async fn get_user_routes(
         &self,
         db: Arc<DatabaseConnection>,
@@ -677,6 +678,7 @@ impl TAuthService for SysAuthService {
  * * `Result<(), AuthError>` - 发送结果
  */
 #[instrument(skip(sender, auth_event))]
+#[allow(dead_code)]
 async fn send_auth_event(
     sender: mpsc::UnboundedSender<Box<dyn std::any::Any + Send>>,
     auth_event: AuthEvent,
