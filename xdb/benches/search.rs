@@ -6,6 +6,14 @@
  * - 缓存块获取性能
  * - 全量缓存获取性能
  * - 向量索引缓存获取性能
+ * 
+ * 基准测试组配置
+ * --------
+ * 配置所有基准测试函数，包括：
+ * - IP地址搜索测试
+ * - 缓存块获取测试
+ * - 全量缓存获取测试
+ * - 向量索引缓存获取测试
  */
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -77,15 +85,6 @@ fn get_vec_index_cache_bench(c: &mut Criterion) {
     });
 }
 
-/**
- * 基准测试组配置
- * 
- * 配置所有基准测试函数，包括：
- * - IP地址搜索测试
- * - 缓存块获取测试
- * - 全量缓存获取测试
- * - 向量索引缓存获取测试
- */
 criterion_group!(
     benches,
     search_by_ip_bench,
